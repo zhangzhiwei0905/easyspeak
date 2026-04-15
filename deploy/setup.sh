@@ -96,8 +96,8 @@ ADMIN_API_KEY=请修改为随机字符串
 JWT_SECRET_KEY=请修改为随机密钥
 
 # 微信小程序配置
-WECHAT_APP_ID=wxa7adea7bbcdd4230
-WECHAT_APP_SECRET=f4b6427b4cb73dd36ab5d44ab235b61b
+WECHAT_APP_ID=填写你的小程序 appid
+WECHAT_APP_SECRET= 填写你的小程序 appsecret
 ENVEOF
     echo "已创建 .env 模板，请编辑 ${APP_DIR}/backend/.env 修改密钥！"
 else

@@ -1,0 +1,131 @@
+<!-- EasySpeak Phrase Detail Page (短语详情页) -->
+<view class="page phrase-detail-page">
+
+  <!-- ========== Loading Skeleton ========== -->
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="skeleton__phrase-card">
+      <view class="skeleton__line skeleton__line--phrase"></view>
+      <view class="skeleton__line skeleton__line--body"></view>
+      <view class="skeleton__line skeleton__line--medium"></view>
+    </view>
+    <view class="skeleton__example-card">
+      <view class="skeleton__line skeleton__line--short"></view>
+      <view class="skeleton__line skeleton__line--long"></view>
+      <view class="skeleton__line skeleton__line--short"></view>
+    </view>
+    <view class="skeleton__example-card">
+      <view class="skeleton__line skeleton__line--short"></view>
+      <view class="skeleton__line skeleton__line--long"></view>
+    </view>
+  </view>
+
+  <!-- ========== Error State ========== -->
+  <view class="error-state" wx:if="{{error && !loading}}">
+    <text class="error-state__icon">😞</text>
+    <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
+    <view class="error-state__actions">
+      <button class="btn btn-primary btn-sm" bindtap="onRetry">重新加载</button>
+      <button class="btn btn-outline btn-sm ml-sm" bindtap="onBack">返回</button>
+    </view>
+  </view>
+
+  <!-- ========== Main Content ========== -->
+  <block wx:if="{{!loading && !error}}">
+
+    <!-- Phrase Card -->
+    <view class="phrase-hero-card animate-fade-in">
+      <!-- Theme badge -->
+      <view class="phrase-hero-card__meta" wx:if="{{themeZh || dateDisplay}}">
+        <text class="phrase-hero-card__theme" wx:if="{{themeZh}}">{{themeZh}}</text>
+        <text class="phrase-hero-card__date" wx:if="{{dateDisplay}}">{{dateDisplay}}</text>
+      </view>
+
+      <!-- Phrase title -->
+      <view class="phrase-hero-card__phrase">{{phrase}}</view>
+
+      <!-- Explanation -->
+      <view class="phrase-hero-card__explanation" wx:if="{{explanation}}">
+        <text class="phrase-hero-card__label">📖 释义</text>
+        <text class="phrase-hero-card__text">{{explanation}}</text>
+      </view>
+
+      <!-- Source tag -->
+      <view class="phrase-hero-card__source" wx:if="{{source}}">
+        <text class="phrase-hero-card__source-icon">🎬</text>
+        <text class="phrase-hero-card__source-text">{{source}}</text>
+      </view>
+    </view>
+
+    <!-- Example Sentences -->
+    <view class="examples-section animate-fade-in" wx:if="{{examples.length > 0}}" style="animation-delay: 0.1s">
+      <view class="section-label">
+        <text class="section-label__icon">💬</text>
+        <text class="section-label__text">例句 ({{examples.length}})</text>
+      </view>
+
+      <view class="example-card card" wx:for="{{examples}}" wx:key="index">
+        <view class="example-card__header">
+          <text class="example-card__num">{{index + 1}}</text>
+          <text class="example-card__tag">EN</text>
+        </view>
+        <view class="example-card__en">{{item.en}}</view>
+        <view class="example-card__divider"></view>
+        <view class="example-card__cn-row">
+          <text class="example-card__tag example-card__tag--cn">CN</text>
+          <text class="example-card__cn">{{item.cn}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Mastery Rating -->
+    <view class="mastery-section animate-fade-in" wx:if="{{isLoggedIn}}" style="animation-delay: 0.2s">
+      <view class="section-label">
+        <text class="section-label__icon">⭐</text>
+        <text class="section-label__text">掌握程度</text>
+      </view>
+      <view class="mastery-card card">
+        <view class="mastery-card__stars">
+          <view class="mastery-star {{masteryRating >= 1 ? 'mastery-star--active' : ''}}"
+                data-rating="1" bindtap="onRateStar">
+            <text class="mastery-star__icon">★</text>
+          </view>
+          <view class="mastery-star {{masteryRating >= 2 ? 'mastery-star--active' : ''}}"
+                data-rating="2" bindtap="onRateStar">
+            <text class="mastery-star__icon">★</text>
+          </view>
+          <view class="mastery-star {{masteryRating >= 3 ? 'mastery-star--active' : ''}}"
+                data-rating="3" bindtap="onRateStar">
+            <text class="mastery-star__icon">★</text>
+          </view>
+          <view class="mastery-star {{masteryRating >= 4 ? 'mastery-star--active' : ''}}"
+                data-rating="4" bindtap="onRateStar">
+            <text class="mastery-star__icon">★</text>
+          </view>
+          <view class="mastery-star {{masteryRating >= 5 ? 'mastery-star--active' : ''}}"
+                data-rating="5" bindtap="onRateStar">
+            <text class="mastery-star__icon">★</text>
+          </view>
+        </view>
+        <text class="mastery-card__label">
+          {{masteryRating === 0 ? '点击星星评分' : masteryRating === 1 ? '还不熟' : masteryRating === 2 ? '有点印象' : masteryRating === 3 ? '基本掌握' : masteryRating === 4 ? '比较熟练' : '完全掌握'}}
+        </text>
+      </view>
+    </view>
+
+    <!-- Login prompt for non-logged-in users -->
+    <view class="login-prompt animate-fade-in" wx:if="{{!isLoggedIn}}" style="animation-delay: 0.2s">
+      <text class="login-prompt__text">登录后可以记录掌握程度</text>
+    </view>
+
+    <!-- Share Button -->
+    <view class="share-section animate-fade-in" style="animation-delay: 0.25s">
+      <button class="share-btn" open-type="share">
+        <text class="share-btn__icon">🔗</text>
+        <text class="share-btn__text">分享给朋友</text>
+      </button>
+    </view>
+
+    <!-- Bottom spacer -->
+    <view style="height: 60rpx;"></view>
+  </block>
+</view>

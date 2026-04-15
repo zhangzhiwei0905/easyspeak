@@ -1,0 +1,120 @@
+<!-- EasySpeak Quiz Play Page (答题界面) -->
+<view class="page quiz-play-page">
+
+  <!-- Loading State -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="loading-state__spinner"></view>
+    <text class="loading-state__text">正在生成题目...</text>
+  </view>
+
+  <!-- Error State -->
+  <view class="error-state" wx:if="{{loadError && !loading}}">
+    <text class="error-state__icon">😞</text>
+    <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
+    <view class="error-state__actions">
+      <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
+      <button class="btn btn-outline btn-sm mt-md" bindtap="onBack">返回</button>
+    </view>
+  </view>
+
+  <!-- Quiz Content -->
+  <block wx:if="{{!loading && !loadError && question}}">
+
+    <!-- Timer (Lightning mode) -->
+    <view class="timer {{timerWarning ? 'timer--warning' : ''}}" wx:if="{{isTimed}}">
+      <text class="timer__icon">⏱️</text>
+      <text class="timer__text">{{timerDisplay}}</text>
+    </view>
+
+    <!-- Progress -->
+    <view class="quiz-progress">
+      <view class="quiz-progress__header">
+        <text class="quiz-progress__label">第 {{currentIndex + 1}} / {{totalQuestions}} 题</text>
+        <text class="quiz-progress__correct" wx:if="{{correctCount > 0}}">
+          ✓ {{correctCount}}
+        </text>
+      </view>
+      <progress-bar
+        current="{{currentIndex + (submitted ? 1 : 0)}}"
+        total="{{totalQuestions}}"
+        color="#667eea"
+        height="12">
+      </progress-bar>
+    </view>
+
+    <!-- Question Card -->
+    <view class="question-card card animate-fade-in">
+      <!-- Question type tag -->
+      <view class="question-card__type">
+        <text class="question-card__type-text" wx:if="{{questionType === 'phrase_meaning'}}">短语含义</text>
+        <text class="question-card__type-text" wx:elif="{{questionType === 'word_phonetic'}}">单词音标</text>
+        <text class="question-card__type-text" wx:elif="{{questionType === 'fill_blank'}}">填空题</text>
+        <text class="question-card__type-text" wx:else>{{questionType}}</text>
+      </view>
+
+      <!-- Question text -->
+      <text class="question-card__text">{{questionText}}</text>
+    </view>
+
+    <!-- Options -->
+    <view class="options-list">
+      <quiz-option
+        wx:for="{{options}}"
+        wx:key="key"
+        key="{{item.key}}"
+        text="{{item.text}}"
+        selected="{{selectedKey === item.key}}"
+        correct="{{item.isCorrect}}"
+        showResult="{{submitted}}"
+        disabled="{{submitted}}"
+        bind:select="onSelectOption">
+      </quiz-option>
+    </view>
+
+    <!-- Feedback (after submit) -->
+    <view class="feedback" wx:if="{{submitted}}">
+      <view class="feedback--correct" wx:if="{{isCorrect}}">
+        <text class="feedback__icon">🎉</text>
+        <text class="feedback__text">回答正确！</text>
+      </view>
+      <view class="feedback--wrong" wx:else>
+        <text class="feedback__icon">😅</text>
+        <text class="feedback__text">回答错误，正确答案是 {{correctOptionText}}</text>
+      </view>
+      <text class="feedback__explanation" wx:if="{{question.hint}}">
+        💡 {{question.hint}}
+      </text>
+      <text class="feedback__explanation" wx:elif="{{question.explanation}}">
+        {{question.explanation}}
+      </text>
+    </view>
+
+    <!-- Action Buttons -->
+    <view class="action-bar safe-bottom">
+      <!-- Submit button (before submit) -->
+      <button
+        class="btn btn-primary btn-block action-btn {{!selectedKey ? 'btn-disabled' : ''}}"
+        wx:if="{{!submitted}}"
+        bindtap="onSubmitAnswer">
+        确认
+      </button>
+
+      <!-- Next button (after submit) -->
+      <button
+        class="btn btn-primary btn-block action-btn"
+        wx:if="{{submitted && currentIndex < totalQuestions - 1}}"
+        bindtap="onNextQuestion">
+        下一题 →
+      </button>
+
+      <!-- Finish button (last question) -->
+      <button
+        class="btn btn-accent btn-block action-btn"
+        wx:if="{{submitted && currentIndex >= totalQuestions - 1}}"
+        bindtap="onNextQuestion">
+        查看结果 📊
+      </button>
+    </view>
+
+  </block>
+</view>

@@ -1,0 +1,215 @@
+/**
+ * EasySpeak - Quiz Play Page Styles (答题界面)
+ */
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.loading-state__spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: var(--spacing-lg);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-state__text {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-hint);
+}
+
+/* Error State */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: var(--spacing-page);
+}
+
+.error-state__icon {
+  font-size: 120rpx;
+  margin-bottom: var(--spacing-lg);
+}
+
+.error-state__text {
+  font-size: var(--font-size-title);
+  color: var(--color-text-hint);
+  margin-bottom: var(--spacing-md);
+}
+
+.error-state__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+/* Timer */
+.timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 32rpx;
+  background: var(--color-card);
+  border-radius: var(--radius-round);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
+  transition: all 0.3s ease;
+}
+
+.timer--warning {
+  background: rgba(255, 77, 79, 0.1);
+  box-shadow: 0 0 0 2rpx rgba(255, 77, 79, 0.3);
+}
+
+.timer--warning .timer__text {
+  color: var(--color-error);
+}
+
+.timer__icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.timer__text {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Progress */
+.quiz-progress {
+  margin-bottom: var(--spacing-lg);
+}
+
+.quiz-progress__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.quiz-progress__label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.quiz-progress__correct {
+  font-size: var(--font-size-caption);
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+/* Question Card */
+.question-card {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+}
+
+.question-card__type {
+  margin-bottom: var(--spacing-sm);
+}
+
+.question-card__type-text {
+  display: inline-block;
+  font-size: var(--font-size-small);
+  color: var(--color-primary);
+  background: rgba(102, 126, 234, 0.1);
+  padding: 4rpx 16rpx;
+  border-radius: var(--radius-round);
+  font-weight: 500;
+}
+
+.question-card__text {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+/* Options List */
+.options-list {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Feedback */
+.feedback {
+  padding: var(--spacing-md) var(--spacing-card);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  animation: fadeIn 0.3s ease;
+}
+
+.feedback--correct {
+  background: rgba(82, 196, 26, 0.08);
+  border: 2rpx solid rgba(82, 196, 26, 0.2);
+}
+
+.feedback--wrong {
+  background: rgba(255, 77, 79, 0.08);
+  border: 2rpx solid rgba(255, 77, 79, 0.2);
+}
+
+.feedback__icon {
+  display: block;
+  font-size: 48rpx;
+  margin-bottom: var(--spacing-xs);
+}
+
+.feedback__text {
+  display: block;
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.feedback--correct .feedback__text {
+  color: var(--color-success);
+}
+
+.feedback--wrong .feedback__text {
+  color: var(--color-error);
+}
+
+.feedback__explanation {
+  display: block;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-sm);
+  line-height: 1.5;
+  padding-top: var(--spacing-sm);
+  border-top: 1rpx solid var(--color-border);
+}
+
+/* Action Bar */
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--spacing-md) var(--spacing-page);
+  background: var(--color-bg);
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+  z-index: 100;
+}
+
+.action-btn {
+  margin-bottom: 0 !important;
+}

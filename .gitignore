@@ -1,0 +1,52 @@
+# ========================
+# EasySpeak .gitignore
+# ========================
+
+# --- Secrets / Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Database ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+
+# --- WeChat Dev Tools ---
+miniprogram/node_modules/
+miniprogram_npm/
+project.private.config.json
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Claude Code ---
+.claude/
+
+# --- Docs / Non-code files ---
+english_history.json
+*设计方案*.md
+*.设计方案.md
+
+# --- Logs ---
+*.log
+logs/

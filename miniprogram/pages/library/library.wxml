@@ -1,0 +1,106 @@
+<!-- EasySpeak Library Page (内容库) -->
+<view class="page library-page">
+
+  <!-- ========== Search Bar ========== -->
+  <view class="search-bar" bindtap="onSearchFocus">
+    <view class="search-bar__inner">
+      <text class="search-bar__icon">🔍</text>
+      <text class="search-bar__placeholder">{{searchPlaceholder}}</text>
+    </view>
+  </view>
+
+  <!-- ========== Filter Tabs ========== -->
+  <view class="filter-tabs">
+    <view class="filter-tabs__item {{activeFilter === item.key ? 'filter-tabs__item--active' : ''}}"
+          wx:for="{{filterTabs}}"
+          wx:key="key"
+          data-filter="{{item.key}}"
+          bindtap="onFilterChange">
+      <text class="filter-tabs__text">{{item.label}}</text>
+    </view>
+  </view>
+
+  <!-- ========== Loading Skeleton ========== -->
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="skeleton__card" wx:for="{{3}}" wx:key="index">
+      <view class="skeleton__card-header">
+        <view class="skeleton__line skeleton__line--title"></view>
+        <view class="skeleton__line skeleton__line--short" style="margin-bottom:0"></view>
+      </view>
+      <view class="skeleton__line skeleton__line--body"></view>
+    </view>
+  </view>
+
+  <!-- ========== Error State ========== -->
+  <view class="error-state" wx:if="{{error && !loading}}">
+    <text class="error-state__icon">😞</text>
+    <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
+    <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- ========== Empty State ========== -->
+  <view class="empty-state" wx:if="{{isEmpty && !loading && !error}}">
+    <text class="empty-state__icon">📚</text>
+    <text class="empty-state__title">暂无内容</text>
+    <text class="empty-state__desc">还没有推送内容哦</text>
+  </view>
+
+  <!-- ========== Content List ========== -->
+  <block wx:if="{{!loading && !error && !isEmpty}}">
+
+    <!-- Date Groups -->
+    <view class="date-group" wx:for="{{dateGroups}}" wx:key="date">
+      <!-- Date Header -->
+      <view class="date-group__header">
+        <view class="date-group__line"></view>
+        <text class="date-group__label">{{item.label}}</text>
+        <view class="date-group__line"></view>
+      </view>
+
+      <!-- Content Cards -->
+      <view class="content-card card animate-fade-in"
+            wx:for="{{item.items}}"
+            wx:for-item="content"
+            wx:key="id"
+            data-id="{{content.id}}"
+            bindtap="onContentTap">
+        <view class="content-card__header">
+          <text class="content-card__icon">{{content.timeSlot === 'evening' ? '🌙' : '☀️'}}</text>
+          <view class="content-card__theme">
+            <text class="content-card__theme-zh">{{content.themeZh}}</text>
+            <text class="content-card__theme-en">{{content.themeEn}}</text>
+          </view>
+          <view class="content-card__arrow">
+            <text class="content-card__arrow-icon">›</text>
+          </view>
+        </view>
+        <view class="content-card__footer">
+          <view class="content-card__stats">
+            <text class="content-card__stat">📝 {{content.phraseCount}}个短语</text>
+            <text class="content-card__stat-divider">·</text>
+            <text class="content-card__stat">📚 {{content.wordCount}}个单词</text>
+          </view>
+          <view class="content-card__mastery" wx:if="{{content.studied}}">
+            <text class="content-card__mastery-icon">✅</text>
+            <text class="content-card__mastery-text">已学</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Load More Indicator -->
+    <view class="load-more" wx:if="{{loadingMore}}">
+      <view class="load-more__spinner"></view>
+      <text class="load-more__text">加载中...</text>
+    </view>
+
+    <!-- No More Data -->
+    <view class="load-more" wx:if="{{!hasMore && dateGroups.length > 0}}">
+      <text class="load-more__text load-more__text--end">— 没有更多内容了 —</text>
+    </view>
+
+  </block>
+
+  <!-- Bottom safe area -->
+  <view class="safe-bottom" style="height: 40rpx;"></view>
+</view>

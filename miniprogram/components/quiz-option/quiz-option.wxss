@@ -1,0 +1,121 @@
+/* Quiz Option Component */
+.quiz-option {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 28rpx;
+  margin-bottom: 20rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #e0e0e0;
+  background: #ffffff;
+  transition: all 0.25s ease;
+  min-height: 88rpx;
+  box-sizing: border-box;
+}
+
+.quiz-option:active {
+  transform: scale(0.98);
+}
+
+/* Selected state */
+.quiz-option--selected {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.06);
+}
+
+.quiz-option--selected .quiz-option__key {
+  background: #667eea;
+  color: #ffffff;
+}
+
+.quiz-option--selected .quiz-option__text {
+  color: #667eea;
+  font-weight: 500;
+}
+
+/* Correct state (after submit) */
+.quiz-option--correct {
+  border-color: #52c41a;
+  background: rgba(82, 196, 26, 0.06);
+}
+
+.quiz-option--correct .quiz-option__key {
+  background: #52c41a;
+  color: #ffffff;
+}
+
+.quiz-option--correct .quiz-option__text {
+  color: #389e0d;
+  font-weight: 500;
+}
+
+/* Wrong state (after submit, selected but wrong) */
+.quiz-option--wrong {
+  border-color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.06);
+}
+
+.quiz-option--wrong .quiz-option__key {
+  background: #ff4d4f;
+  color: #ffffff;
+}
+
+.quiz-option--wrong .quiz-option__text {
+  color: #cf1322;
+  font-weight: 500;
+}
+
+/* Disabled state */
+.quiz-option--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Key badge */
+.quiz-option__key {
+  flex-shrink: 0;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 12rpx;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #666;
+  margin-right: 20rpx;
+  transition: all 0.25s ease;
+}
+
+/* Text */
+.quiz-option__text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.5;
+  transition: all 0.25s ease;
+}
+
+/* Result icon */
+.quiz-option__icon {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-correct {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #52c41a;
+}
+
+.icon-wrong {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ff4d4f;
+}

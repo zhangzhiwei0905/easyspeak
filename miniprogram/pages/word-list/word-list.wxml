@@ -1,0 +1,203 @@
+<!-- EasySpeak Word List Page (单词列表页) -->
+<view class="page word-list-page">
+
+  <!-- ========== Loading Skeleton ========== -->
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="skeleton__toolbar">
+      <view class="skeleton__line skeleton__line--search"></view>
+    </view>
+    <view class="skeleton__row" wx:for="{{5}}" wx:key="*this">
+      <view class="skeleton__line skeleton__line--word"></view>
+      <view class="skeleton__line skeleton__line--short"></view>
+    </view>
+  </view>
+
+  <!-- ========== Error State ========== -->
+  <view class="error-state" wx:if="{{error && !loading}}">
+    <text class="error-state__icon">😞</text>
+    <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
+    <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- ========== Main Content ========== -->
+  <block wx:if="{{!loading && !error}}">
+
+    <!-- Header Info -->
+    <view class="wl-header animate-fade-in" wx:if="{{themeZh || dateDisplay}}">
+      <text class="wl-header__theme" wx:if="{{themeZh}}">{{themeZh}}</text>
+      <text class="wl-header__date" wx:if="{{dateDisplay}}">{{dateDisplay}}</text>
+      <text class="wl-header__count">共 {{filteredWords.length}}/{{words.length}} 个单词</text>
+    </view>
+
+    <!-- Toolbar: Search + Compact Toggle -->
+    <view class="wl-toolbar animate-fade-in" style="animation-delay: 0.05s">
+      <!-- Search bar -->
+      <view class="search-bar">
+        <text class="search-bar__icon">🔍</text>
+        <input class="search-bar__input"
+               placeholder="搜索单词、音标或释义"
+               placeholder-class="search-bar__placeholder"
+               value="{{searchText}}"
+               bindinput="onSearchInput"
+               bindfocus="onSearchFocus"
+               bindblur="onSearchBlur" />
+        <text class="search-bar__clear" wx:if="{{searchText}}" bindtap="onSearchClear">✕</text>
+      </view>
+
+      <!-- Controls row -->
+      <view class="wl-controls">
+        <!-- POS filter chips -->
+        <scroll-view class="wl-pos-scroll" scroll-x enable-flex>
+          <view class="pos-chip {{posFilter === '' ? 'pos-chip--active' : ''}}"
+                data-pos="" bindtap="onPosFilter">
+            <text class="pos-chip__text">全部</text>
+          </view>
+          <view class="pos-chip {{posFilter === item ? 'pos-chip--active' : ''}}"
+                wx:for="{{posOptions}}" wx:key="*this" wx:if="{{item}}"
+                data-pos="{{item}}" bindtap="onPosFilter">
+            <text class="pos-chip__text">{{item}}</text>
+          </view>
+        </scroll-view>
+
+        <!-- Compact toggle -->
+        <view class="compact-toggle {{compactMode ? 'compact-toggle--active' : ''}}"
+              bindtap="onToggleCompact">
+          <text class="compact-toggle__icon">{{compactMode ? '☰' : '▦'}}</text>
+          <text class="compact-toggle__label">{{compactMode ? '紧凑' : '展开'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Word List -->
+    <view class="wl-list animate-fade-in" style="animation-delay: 0.1s">
+
+      <!-- Full mode rows -->
+      <block wx:if="{{!compactMode}}">
+        <view class="wl-row wl-row--{{index % 2 === 0 ? 'even' : 'odd'}}"
+              wx:for="{{filteredWords}}"
+              wx:key="id"
+              data-index="{{index}}"
+              bindtap="onWordTap">
+          <view class="wl-row__main">
+            <view class="wl-row__left">
+              <text class="wl-row__num">{{index + 1}}</text>
+              <view class="wl-row__word-info">
+                <text class="wl-row__word">{{item.word}}</text>
+                <text class="wl-row__phonetic" wx:if="{{item.phonetic}}">{{item.phonetic}}</text>
+              </view>
+            </view>
+            <view class="wl-row__right">
+              <view class="wl-row__pos-badge" wx:if="{{item.partOfSpeech}}">{{item.partOfSpeech}}</view>
+              <text class="wl-row__meaning text-ellipsis">{{item.meaning}}</text>
+            </view>
+          </view>
+          <!-- Example preview (truncated) -->
+          <view class="wl-row__example" wx:if="{{item.example}}">
+            <text class="wl-row__example-text text-ellipsis">{{item.example}}</text>
+          </view>
+          <view class="wl-row__tap-hint">
+            <text class="wl-row__tap-text">点击查看详情</text>
+          </view>
+        </view>
+      </block>
+
+      <!-- Compact mode rows -->
+      <block wx:if="{{compactMode}}">
+        <view class="wl-compact-row wl-compact-row--{{index % 2 === 0 ? 'even' : 'odd'}}"
+              wx:for="{{filteredWords}}"
+              wx:key="id"
+              data-index="{{index}}"
+              bindtap="onWordTap">
+          <text class="wl-compact-row__num">{{index + 1}}</text>
+          <text class="wl-compact-row__word">{{item.word}}</text>
+          <view class="wl-compact-row__pos-badge" wx:if="{{item.partOfSpeech}}">{{item.partOfSpeech}}</view>
+          <text class="wl-compact-row__meaning text-ellipsis">{{item.meaning}}</text>
+        </view>
+
+        <!-- Expanded detail (shown when a compact row is tapped) -->
+        <view class="wl-expand-card card" wx:if="{{expandedWordIndex >= 0}}"
+              style="animation: fadeIn 0.2s ease forwards;">
+          <block wx:for="{{filteredWords}}" wx:key="id">
+            <block wx:if="{{index === expandedWordIndex}}">
+              <view class="wl-expand-card__header">
+                <text class="wl-expand-card__word">{{item.word}}</text>
+                <text class="wl-expand-card__phonetic" wx:if="{{item.phonetic}}">{{item.phonetic}}</text>
+              </view>
+              <view class="wl-expand-card__pos" wx:if="{{item.partOfSpeech}}">
+                <view class="wl-expand-card__pos-badge">{{item.partOfSpeech}}</view>
+              </view>
+              <view class="wl-expand-card__meaning">
+                <text class="wl-expand-card__meaning-label">释义</text>
+                <text class="wl-expand-card__meaning-text">{{item.meaning}}</text>
+              </view>
+              <view class="wl-expand-card__example" wx:if="{{item.example}}">
+                <text class="wl-expand-card__example-label">例句</text>
+                <text class="wl-expand-card__example-text">{{item.example}}</text>
+              </view>
+            </block>
+          </block>
+        </view>
+      </block>
+
+      <!-- Empty results -->
+      <view class="wl-empty" wx:if="{{filteredWords.length === 0 && words.length > 0}}">
+        <text class="wl-empty__icon">🔍</text>
+        <text class="wl-empty__text">没有找到匹配的单词</text>
+      </view>
+
+      <!-- No words -->
+      <view class="wl-empty" wx:if="{{words.length === 0}}">
+        <text class="wl-empty__icon">📚</text>
+        <text class="wl-empty__text">暂无单词内容</text>
+      </view>
+
+      <!-- List end -->
+      <view class="wl-list-end" wx:if="{{filteredWords.length > 0}}">
+        <text class="wl-list-end__text">已显示全部 {{filteredWords.length}} 个单词</text>
+      </view>
+    </view>
+
+    <!-- Bottom spacer -->
+    <view style="height: 60rpx;"></view>
+  </block>
+
+  <!-- ========== Flip Card Modal ========== -->
+  <view class="modal-overlay {{showModal ? 'modal-overlay--visible' : ''}}"
+        wx:if="{{showModal}}"
+        bindtap="onModalClose"
+        catchtouchmove="preventModalBubble">
+    <view class="flip-modal" catchtap="preventModalBubble">
+
+      <!-- Card container -->
+      <view class="flip-card {{modalWord._flipped ? 'flip-card--flipped' : ''}}"
+            bindtap="onModalFlip">
+
+        <!-- Front side -->
+        <view class="flip-card__front">
+          <view class="flip-card__corner">点击翻转 →</view>
+          <text class="flip-card__word">{{modalWord.word}}</text>
+          <text class="flip-card__phonetic" wx:if="{{modalWord.phonetic}}">{{modalWord.phonetic}}</text>
+          <view class="flip-card__pos-badge" wx:if="{{modalWord.partOfSpeech}}">{{modalWord.partOfSpeech}}</view>
+        </view>
+
+        <!-- Back side -->
+        <view class="flip-card__back">
+          <view class="flip-card__corner">点击翻回 →</view>
+          <view class="flip-card__meaning-section">
+            <text class="flip-card__meaning-label">释义</text>
+            <text class="flip-card__meaning-text">{{modalWord.meaning}}</text>
+          </view>
+          <view class="flip-card__example-section" wx:if="{{modalWord.example}}">
+            <text class="flip-card__example-label">例句</text>
+            <text class="flip-card__example-text">{{modalWord.example}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Close button -->
+      <view class="flip-modal__close" bindtap="onModalClose">
+        <text class="flip-modal__close-text">关闭</text>
+      </view>
+    </view>
+  </view>
+</view>

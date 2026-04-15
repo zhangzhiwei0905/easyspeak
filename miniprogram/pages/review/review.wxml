@@ -1,0 +1,292 @@
+<!-- Review Page: Overview + Session modes -->
+
+<!-- Mode 1: Review Overview -->
+<view class="review-page" wx:if="{{mode === 'overview'}}">
+  <!-- Page Header -->
+  <view class="review-header">
+    <text class="review-header__icon">🧠</text>
+    <text class="review-header__title">智能复习</text>
+    <text class="review-header__subtitle">基于间隔重复算法的高效复习</text>
+  </view>
+
+  <!-- Study Calendar -->
+  <view class="review-section">
+    <view class="review-section__title">
+      <text class="review-section__icon">📅</text>
+      <text>复习日历</text>
+    </view>
+    <calendar
+      studyDates="{{calendarDates}}"
+      currentMonth="{{currentMonth}}"
+      bind:monthchange="onMonthChange"
+      bind:daytap="onDayTap"
+    />
+  </view>
+
+  <!-- Memory Curve Overview -->
+  <view class="review-section">
+    <view class="review-section__title">
+      <text class="review-section__icon">📊</text>
+      <text>记忆曲线概览</text>
+    </view>
+
+    <view class="memory-stats">
+      <!-- Forgetting Soon -->
+      <view class="memory-stat memory-stat--forgetting">
+        <view class="memory-stat__left">
+          <view class="memory-stat__dot memory-stat__dot--red"></view>
+          <text class="memory-stat__label">即将遗忘</text>
+        </view>
+        <text class="memory-stat__count">{{summary.forgetting_count || 0}}</text>
+        <text class="memory-stat__hint">1天内到期</text>
+      </view>
+
+      <!-- Consolidating -->
+      <view class="memory-stat memory-stat--consolidating">
+        <view class="memory-stat__left">
+          <view class="memory-stat__dot memory-stat__dot--yellow"></view>
+          <text class="memory-stat__label">巩固中</text>
+        </view>
+        <text class="memory-stat__count">{{summary.consolidating_count || 0}}</text>
+        <text class="memory-stat__hint">3天内到期</text>
+      </view>
+
+      <!-- Mastered -->
+      <view class="memory-stat memory-stat--mastered">
+        <view class="memory-stat__left">
+          <view class="memory-stat__dot memory-stat__dot--green"></view>
+          <text class="memory-stat__label">已掌握</text>
+        </view>
+        <text class="memory-stat__count">{{summary.mastered_count || 0}}</text>
+        <text class="memory-stat__hint">7天+无到期</text>
+      </view>
+
+      <!-- New Content -->
+      <view class="memory-stat memory-stat--new">
+        <view class="memory-stat__left">
+          <view class="memory-stat__dot memory-stat__dot--gray"></view>
+          <text class="memory-stat__label">新内容</text>
+        </view>
+        <text class="memory-stat__count">{{summary.new_count || 0}}</text>
+        <text class="memory-stat__hint">从未复习</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Start Review Button -->
+  <view class="review-action">
+    <button
+      class="review-btn {{dueCount > 0 ? 'review-btn--active' : 'review-btn--disabled'}}"
+      bindtap="startReview"
+      disabled="{{dueCount === 0 && loadingDue === false}}"
+    >
+      <text class="review-btn__icon">🔄</text>
+      <text class="review-btn__text">开始复习</text>
+      <text class="review-btn__count" wx:if="{{dueCount > 0}}">{{dueCount}}项待复习</text>
+      <text class="review-btn__count" wx:elif="{{loadingDue}}">加载中...</text>
+      <text class="review-btn__count" wx:else>暂无待复习</text>
+    </button>
+  </view>
+
+  <!-- Empty state -->
+  <view class="review-empty" wx:if="{{!loading && dueCount === 0 && !summary}}">
+    <text class="review-empty__text">😊 今日暂无待复习内容</text>
+    <text class="review-empty__hint">快去首页学习新内容吧！</text>
+  </view>
+
+  <!-- Loading state -->
+  <view class="review-loading" wx:if="{{loading}}">
+    <view class="review-loading__spinner"></view>
+    <text class="review-loading__text">加载中...</text>
+  </view>
+</view>
+
+<!-- Mode 2: Review Session -->
+<view class="review-session" wx:if="{{mode === 'session'}}">
+  <!-- Session Header with Progress -->
+  <view class="session-header">
+    <view class="session-header__top">
+      <view class="session-header__back" bindtap="exitSession">
+        <text>✕</text>
+      </view>
+      <text class="session-header__title">复习中</text>
+      <view class="session-header__placeholder"></view>
+    </view>
+    <view class="session-header__progress-text">
+      <text>第 {{currentIndex + 1}} / {{dueItems.length}} 项</text>
+    </view>
+    <progress-bar
+      current="{{currentIndex}}"
+      total="{{dueItems.length}}"
+      color="#667eea"
+      height="{{12}}"
+    />
+  </view>
+
+  <!-- Flip Card -->
+  <view class="session-card-area">
+    <view class="flip-card" bindtap="flipCard">
+      <view class="flip-card__inner {{isFlipped ? 'flip-card__inner--flipped' : ''}}">
+        <!-- Front: phrase or word -->
+        <view class="flip-card__face flip-card__face--front">
+          <view class="flip-card__front-content">
+            <view class="flip-card__type-badge" wx:if="{{currentItem.type === 'phrase'}}">
+              <text>💬 短语</text>
+            </view>
+            <view class="flip-card__type-badge flip-card__type-badge--word" wx:if="{{currentItem.type === 'word'}}">
+              <text>📖 单词</text>
+            </view>
+            <text class="flip-card__text">{{currentItem.text}}</text>
+            <text class="flip-card__phonetic" wx:if="{{currentItem.phonetic}}">{{currentItem.phonetic}}</text>
+            <text class="flip-card__hint">点击翻转查看释义 →</text>
+          </view>
+        </view>
+
+        <!-- Back: meaning + examples -->
+        <view class="flip-card__face flip-card__face--back">
+          <scroll-view class="flip-card__back-scroll" scroll-y="true">
+            <view class="flip-card__back-content">
+              <view class="flip-card__back-header">
+                <text class="flip-card__back-text">{{currentItem.text}}</text>
+                <text class="flip-card__back-pos" wx:if="{{currentItem.part_of_speech}}">{{currentItem.part_of_speech}}</text>
+              </view>
+
+              <view class="flip-card__meaning-block">
+                <text class="flip-card__meaning-label">释义</text>
+                <text class="flip-card__meaning">{{currentItem.meaning}}</text>
+              </view>
+
+              <!-- Explanation for phrases -->
+              <view class="flip-card__explanation-block" wx:if="{{currentItem.explanation}}">
+                <text class="flip-card__explanation-label">📖 解读</text>
+                <text class="flip-card__explanation">{{currentItem.explanation}}</text>
+              </view>
+
+              <!-- Examples -->
+              <view class="flip-card__examples-block" wx:if="{{currentItem.examples && currentItem.examples.length > 0}}">
+                <text class="flip-card__examples-label">📝 例句</text>
+                <view class="flip-card__example" wx:for="{{currentItem.examples}}" wx:key="index">
+                  <text class="flip-card__example-text">{{item}}</text>
+                </view>
+              </view>
+
+              <!-- Single example string -->
+              <view class="flip-card__example-block" wx:if="{{currentItem.example && (!currentItem.examples || currentItem.examples.length === 0)}}">
+                <text class="flip-card__example-label">📝 例句</text>
+                <text class="flip-card__example-text">{{currentItem.example}}</text>
+              </view>
+
+              <!-- Source -->
+              <view class="flip-card__source-block" wx:if="{{currentItem.source}}">
+                <text class="flip-card__source">🎬 来源: {{currentItem.source}}</text>
+              </view>
+
+              <text class="flip-card__hint-back">点击翻回正面 →</text>
+            </view>
+          </scroll-view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Mastery Buttons (visible after flip) -->
+  <view class="mastery-area {{isFlipped ? 'mastery-area--visible' : ''}}">
+    <text class="mastery-area__label">你的掌握程度：</text>
+    <view class="mastery-buttons">
+      <view
+        class="mastery-btn mastery-btn--0"
+        data-mastery="{{0}}"
+        bindtap="selectMastery"
+      >
+        <text class="mastery-btn__emoji">😫</text>
+        <text class="mastery-btn__label">完全忘了</text>
+      </view>
+      <view
+        class="mastery-btn mastery-btn--1"
+        data-mastery="{{1}}"
+        bindtap="selectMastery"
+      >
+        <text class="mastery-btn__emoji">😕</text>
+        <text class="mastery-btn__label">有点印象</text>
+      </view>
+      <view
+        class="mastery-btn mastery-btn--2"
+        data-mastery="{{2}}"
+        bindtap="selectMastery"
+      >
+        <text class="mastery-btn__emoji">🤔</text>
+        <text class="mastery-btn__label">想起来了</text>
+      </view>
+      <view
+        class="mastery-btn mastery-btn--3"
+        data-mastery="{{3}}"
+        bindtap="selectMastery"
+      >
+        <text class="mastery-btn__emoji">😊</text>
+        <text class="mastery-btn__label">比较熟悉</text>
+      </view>
+      <view
+        class="mastery-btn mastery-btn--4"
+        data-mastery="{{4}}"
+        bindtap="selectMastery"
+      >
+        <text class="mastery-btn__emoji">🎯</text>
+        <text class="mastery-btn__label">完全掌握</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Submitting state -->
+  <view class="session-submitting" wx:if="{{submitting}}">
+    <view class="review-loading__spinner"></view>
+    <text>提交中...</text>
+  </view>
+</view>
+
+<!-- Mode 3: Review Summary -->
+<view class="review-summary" wx:if="{{mode === 'summary'}}">
+  <view class="summary-card">
+    <view class="summary-card__icon">🎉</view>
+    <text class="summary-card__title">复习完成！</text>
+
+    <view class="summary-stats">
+      <view class="summary-stat">
+        <text class="summary-stat__value">{{summaryResult.reviewedCount}}</text>
+        <text class="summary-stat__label">已复习</text>
+      </view>
+      <view class="summary-stat__divider"></view>
+      <view class="summary-stat">
+        <text class="summary-stat__value">{{summaryResult.avgMastery}}</text>
+        <text class="summary-stat__label">平均掌握度</text>
+      </view>
+      <view class="summary-stat__divider"></view>
+      <view class="summary-stat">
+        <text class="summary-stat__value summary-stat__value--{{summaryResult.masteryLevel}}">{{summaryResult.masteryLabel}}</text>
+        <text class="summary-stat__label">总体评价</text>
+      </view>
+    </view>
+
+    <!-- Mastery Distribution -->
+    <view class="summary-distribution">
+      <text class="summary-distribution__title">掌握度分布</text>
+      <view class="summary-distribution__bars">
+        <view class="dist-row" wx:for="{{summaryResult.distribution}}" wx:key="level">
+          <text class="dist-row__label">{{item.emoji}} {{item.label}}</text>
+          <view class="dist-row__bar-track">
+            <view class="dist-row__bar-fill" style="width: {{item.pct}}%;"></view>
+          </view>
+          <text class="dist-row__count">{{item.count}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="summary-actions">
+    <button class="summary-btn summary-btn--again" bindtap="reviewAgain">
+      <text>🔄 再来一轮</text>
+    </button>
+    <button class="summary-btn summary-btn--back" bindtap="backToOverview">
+      <text>🏠 返回复习首页</text>
+    </button>
+  </view>
+</view>

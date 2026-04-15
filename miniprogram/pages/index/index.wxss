@@ -1,0 +1,546 @@
+/* ========================================
+   Index Page Styles
+   ======================================== */
+
+/* ---------- Skeleton Loading ---------- */
+.skeleton {
+  padding: 0;
+}
+
+.skeleton__card {
+  background: var(--color-card);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-card);
+  margin-bottom: var(--spacing-lg);
+}
+
+.skeleton__line {
+  height: 28rpx;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400% 100%;
+  border-radius: 8rpx;
+  margin-bottom: 20rpx;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton__line--short {
+  width: 40%;
+  margin: 0 auto;
+}
+
+.skeleton__line--title {
+  width: 60%;
+  height: 36rpx;
+}
+
+.skeleton__line--body {
+  width: 90%;
+}
+
+.skeleton__line--btn {
+  width: 30%;
+  height: 36rpx;
+  margin-top: 16rpx;
+  margin-bottom: 0;
+}
+
+.skeleton__line--section {
+  width: 40%;
+  height: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.skeleton__line--long {
+  width: 95%;
+}
+
+.skeleton__line--medium {
+  width: 70%;
+  margin-bottom: 0;
+}
+
+.skeleton__bar {
+  height: 20rpx;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400% 100%;
+  border-radius: 999rpx;
+  margin-bottom: 20rpx;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton__rect {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400% 100%;
+  border-radius: var(--radius-card);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton__rect--word {
+  width: 400rpx;
+  height: 300rpx;
+}
+
+.skeleton__date-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160rpx;
+  margin-bottom: var(--spacing-lg);
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---------- Error State ---------- */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx var(--spacing-page);
+}
+
+.error-state__icon {
+  font-size: 120rpx;
+  margin-bottom: var(--spacing-lg);
+}
+
+.error-state__text {
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
+/* ---------- Empty State Override ---------- */
+.empty-state__icon {
+  font-size: 120rpx;
+  margin-bottom: var(--spacing-lg);
+}
+
+.empty-state__title {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.empty-state__desc {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+  text-align: center;
+}
+
+.empty-state__hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-hint);
+}
+
+/* ---------- Date Picker ---------- */
+.date-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx var(--spacing-card);
+  margin-bottom: var(--spacing-lg);
+}
+
+.date-picker__nav {
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-bg);
+  transition: background 0.2s;
+}
+
+.date-picker__nav:active {
+  background: var(--color-border);
+}
+
+.date-picker__arrow {
+  font-size: 44rpx;
+  font-weight: 300;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.date-picker__arrow--disabled {
+  color: var(--color-text-hint);
+  opacity: 0.4;
+}
+
+.date-picker__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.date-picker__time-slot {
+  display: flex;
+  background: var(--color-bg);
+  border-radius: var(--radius-round);
+  padding: 4rpx;
+  margin-bottom: 8rpx;
+}
+
+.time-slot-btn {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 28rpx;
+  border-radius: var(--radius-round);
+  transition: all 0.3s ease;
+}
+
+.time-slot-btn--active {
+  background: var(--color-primary-gradient);
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+.time-slot-btn--active .time-slot-btn__text {
+  color: #ffffff;
+}
+
+.time-slot-btn__icon {
+  font-size: 24rpx;
+  margin-right: 6rpx;
+}
+
+.time-slot-btn__text {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.date-picker__date {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-hint);
+}
+
+/* ---------- Push Card ---------- */
+.push-card {
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.push-card__header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.push-card__emoji {
+  font-size: 56rpx;
+  margin-right: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.push-card__theme {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.push-card__theme-zh {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.push-card__theme-en {
+  font-size: var(--font-size-caption);
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+  margin-top: 4rpx;
+}
+
+.push-card__intro {
+  font-size: var(--font-size-body);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.7;
+  margin-bottom: var(--spacing-md);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.push-card__stats {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.push-card__stat {
+  font-size: var(--font-size-caption);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.push-card__stat-divider {
+  margin: 0 12rpx;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.push-card__action {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 16rpx 40rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-round);
+  backdrop-filter: blur(8px);
+  transition: background 0.2s;
+}
+
+.push-card__action:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.push-card__btn-text {
+  font-size: var(--font-size-body);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.push-card__btn-arrow {
+  font-size: var(--font-size-body);
+  color: #ffffff;
+  margin-left: 8rpx;
+}
+
+/* ---------- Section Common ---------- */
+.section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.section__title-row {
+  display: flex;
+  align-items: center;
+}
+
+.section__icon {
+  font-size: 36rpx;
+  margin-right: 10rpx;
+}
+
+.section__title {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.section__more {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 16rpx;
+}
+
+.section__more:active {
+  opacity: 0.6;
+}
+
+.section__more-text {
+  font-size: var(--font-size-caption);
+  color: var(--color-primary);
+}
+
+.section__more-arrow {
+  font-size: var(--font-size-caption);
+  color: var(--color-primary);
+  margin-left: 4rpx;
+}
+
+/* ---------- Phrases List ---------- */
+.phrases-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.phrase-item {
+  /* each phrase-card handles its own margin */
+}
+
+/* ---------- Words Scroll ---------- */
+.words-scroll {
+  width: 100%;
+  white-space: nowrap;
+  margin-bottom: var(--spacing-sm);
+}
+
+.words-scroll__inner {
+  display: inline-flex;
+  padding-right: var(--spacing-page);
+  gap: 24rpx;
+}
+
+.words-scroll__item {
+  width: 400rpx;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.words-scroll__hint {
+  text-align: center;
+  padding: 8rpx 0;
+}
+
+.words-scroll__hint-text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-hint);
+}
+
+/* ---------- Progress Section ---------- */
+.progress-section__content {
+  padding: var(--spacing-card);
+}
+
+.progress-section__item {
+  margin-bottom: var(--spacing-lg);
+}
+
+.progress-section__item:last-child {
+  margin-bottom: 0;
+}
+
+.progress-section__label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.progress-section__label-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+}
+
+.progress-section__label-text {
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+/* ---------- Review Section ---------- */
+.review-card {
+  padding: var(--spacing-card);
+  border-left: 8rpx solid #e8590c;
+}
+
+.review-card__header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.review-card__icon {
+  font-size: 40rpx;
+  margin-right: 12rpx;
+}
+
+.review-card__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.review-card__title {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.review-card__desc {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-md);
+  display: block;
+}
+
+.review-card__action {
+  display: inline-flex;
+  align-items: center;
+  padding: 16rpx 40rpx;
+  background: #e8590c;
+  border-radius: var(--radius-round);
+  transition: opacity 0.2s;
+}
+
+.review-card__action:active {
+  opacity: 0.8;
+}
+
+.review-card__btn-text {
+  font-size: var(--font-size-body);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.review-card__btn-arrow {
+  font-size: var(--font-size-body);
+  color: #ffffff;
+  margin-left: 8rpx;
+}
+
+/* ---------- Review Done Card ---------- */
+.review-done-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-lg) var(--spacing-card);
+}
+
+.review-done-card__icon {
+  font-size: 48rpx;
+  margin-bottom: var(--spacing-sm);
+}
+
+.review-done-card__text {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Responsive / Dark mode adjustments ---------- */
+page.dark .skeleton__line,
+page.dark .skeleton__bar,
+page.dark .skeleton__rect {
+  background: linear-gradient(90deg, #21262d 25%, #30363d 50%, #21262d 75%);
+  background-size: 400% 100%;
+}
+
+page.dark .date-picker {
+  background: var(--color-card);
+}
+
+page.dark .date-picker__nav {
+  background: var(--color-bg);
+}
+
+page.dark .date-picker__time-slot {
+  background: var(--color-bg);
+}
+
+page.dark .review-card {
+  border-left-color: #f0883e;
+}
+
+page.dark .review-card__action {
+  background: #f0883e;
+}
+
+page.dark .push-card__action {
+  background: rgba(255, 255, 255, 0.15);
+}

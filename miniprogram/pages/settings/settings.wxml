@@ -1,0 +1,181 @@
+<!-- pages/settings/settings.wxml -->
+<view class="page">
+
+  <!-- Notification Settings -->
+  <view class="card">
+    <view class="section-title-row">
+      <text class="section-icon">🔔</text>
+      <text class="section-title">通知提醒</text>
+    </view>
+
+    <!-- Daily Reminder -->
+    <view class="setting-item">
+      <view class="setting-left">
+        <text class="setting-icon-text">🔔</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">每日提醒</text>
+          <text class="setting-desc">{{settings.remindEnabled ? settings.remindTime : '已关闭'}}</text>
+        </view>
+      </view>
+      <switch checked="{{settings.remindEnabled}}" color="#667eea" bindchange="onRemindToggle" />
+    </view>
+
+    <!-- Morning Time Picker -->
+    <view class="setting-item setting-sub" wx:if="{{settings.remindEnabled}}">
+      <view class="setting-left">
+        <text class="setting-icon-text">☀️</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">晨间提醒</text>
+          <text class="setting-desc">{{settings.morningTime}}</text>
+        </view>
+      </view>
+      <picker mode="time" value="{{settings.morningTime}}" bindchange="onMorningTimeChange">
+        <view class="picker-btn">
+          <text class="picker-btn-text">{{settings.morningTime}}</text>
+          <text class="arrow-icon">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <!-- Evening Time Picker -->
+    <view class="setting-item setting-sub" wx:if="{{settings.remindEnabled}}">
+      <view class="setting-left">
+        <text class="setting-icon-text">🌙</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">晚间提醒</text>
+          <text class="setting-desc">{{settings.eveningTime}}</text>
+        </view>
+      </view>
+      <picker mode="time" value="{{settings.eveningTime}}" bindchange="onEveningTimeChange">
+        <view class="picker-btn">
+          <text class="picker-btn-text">{{settings.eveningTime}}</text>
+          <text class="arrow-icon">›</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="divider"></view>
+
+    <!-- Email Push -->
+    <view class="setting-item">
+      <view class="setting-left">
+        <text class="setting-icon-text">📧</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">邮件推送</text>
+          <text class="setting-desc">{{settings.emailPush ? '每日学习内容推送至邮箱' : '未开启邮件推送'}}</text>
+        </view>
+      </view>
+      <switch checked="{{settings.emailPush}}" color="#667eea" bindchange="onEmailPushToggle" />
+    </view>
+  </view>
+
+  <!-- Display Settings -->
+  <view class="card">
+    <view class="section-title-row">
+      <text class="section-icon">🎨</text>
+      <text class="section-title">显示</text>
+    </view>
+
+    <!-- Dark Mode -->
+    <view class="setting-item">
+      <view class="setting-left">
+        <text class="setting-icon-text">🌙</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">深色模式</text>
+          <text class="setting-desc">{{settings.darkMode ? '夜间主题已开启' : '跟随系统默认'}}</text>
+        </view>
+      </view>
+      <switch checked="{{settings.darkMode}}" color="#667eea" bindchange="onDarkModeToggle" />
+    </view>
+  </view>
+
+  <!-- Data Management -->
+  <view class="card">
+    <view class="section-title-row">
+      <text class="section-icon">💾</text>
+      <text class="section-title">数据管理</text>
+    </view>
+
+    <!-- Storage Info -->
+    <view class="setting-item" bindtap="showStorageInfo">
+      <view class="setting-left">
+        <text class="setting-icon-text">📊</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">缓存大小</text>
+          <text class="setting-desc">{{storageSizeText}}</text>
+        </view>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+
+    <view class="divider"></view>
+
+    <!-- Clear Cache -->
+    <view class="setting-item" bindtap="onClearCache">
+      <view class="setting-left">
+        <text class="setting-icon-text">🗑️</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">清除缓存</text>
+          <text class="setting-desc">清除本地缓存数据</text>
+        </view>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+  </view>
+
+  <!-- About -->
+  <view class="card">
+    <view class="section-title-row">
+      <text class="section-icon">ℹ️</text>
+      <text class="section-title">关于</text>
+    </view>
+
+    <view class="setting-item">
+      <view class="setting-left">
+        <text class="setting-icon-text">📱</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">关于 EasySpeak</text>
+          <text class="setting-desc">版本 {{version}}</text>
+        </view>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="setting-item">
+      <view class="setting-left">
+        <text class="setting-icon-text">📝</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">更新日志</text>
+          <text class="setting-desc">查看最新版本更新</text>
+        </view>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+
+    <view class="divider"></view>
+
+    <view class="setting-item">
+      <view class="setting-left">
+        <text class="setting-icon-text">⭐</text>
+        <view class="setting-text-wrap">
+          <text class="setting-label">给小程序评分</text>
+          <text class="setting-desc">您的支持是我们最大的动力</text>
+        </view>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+  </view>
+
+  <!-- Logout -->
+  <view class="card logout-card" bindtap="onLogout">
+    <text class="logout-text">退出登录</text>
+  </view>
+
+  <view class="footer-info safe-bottom">
+    <text class="footer-text">EasySpeak v{{version}}</text>
+    <text class="footer-sub">Made with ❤️ for English Learners</text>
+  </view>
+
+</view>

@@ -1,0 +1,162 @@
+<!-- EasySpeak Quiz Result Page (答题结果) -->
+<view class="page quiz-result-page">
+
+  <!-- Score Circle -->
+  <view class="score-section animate-fade-in">
+    <view class="score-circle">
+      <view class="score-circle__bg">
+        <!-- Animated SVG circle -->
+        <view class="score-circle__svg">
+          <!-- Background circle -->
+          <view class="score-circle__track"></view>
+          <!-- Progress circle -->
+          <view
+            class="score-circle__progress"
+            style="--percent: {{scorePercent}}; --circumference: 565.48;">
+          </view>
+        </view>
+        <!-- Score text in center -->
+        <view class="score-circle__content">
+          <text class="score-circle__correct">{{scoreDisplay}}</text>
+          <text class="score-circle__separator">/</text>
+          <text class="score-circle__total">{{total}}</text>
+          <text class="score-circle__accuracy">{{scorePercent}}%</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Performance message -->
+    <view class="performance">
+      <text class="performance__emoji">{{performanceEmoji}}</text>
+      <text class="performance__text">{{performanceText}}</text>
+    </view>
+
+    <!-- Quick stats -->
+    <view class="quick-stats">
+      <view class="quick-stats__item quick-stats__item--correct">
+        <text class="quick-stats__value">{{correct}}</text>
+        <text class="quick-stats__label">正确</text>
+      </view>
+      <view class="quick-stats__divider"></view>
+      <view class="quick-stats__item quick-stats__item--wrong">
+        <text class="quick-stats__value">{{total - correct}}</text>
+        <text class="quick-stats__label">错误</text>
+      </view>
+      <view class="quick-stats__divider"></view>
+      <view class="quick-stats__item">
+        <text class="quick-stats__value">{{accuracy}}%</text>
+        <text class="quick-stats__label">正确率</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Action Buttons -->
+  <view class="result-actions">
+    <button class="btn btn-primary btn-block" bindtap="onRetry">再来一次</button>
+    <button class="btn btn-outline btn-block mt-md" bindtap="onBackToQuiz">返回测验中心</button>
+  </view>
+
+  <!-- Type Stats Breakdown -->
+  <view class="type-stats" wx:if="{{typeStats.length > 0}}">
+    <view class="type-stats__header">
+      <text class="type-stats__title">题型分析</text>
+    </view>
+    <view class="type-stats__grid">
+      <view class="type-stats__item" wx:for="{{typeStats}}" wx:key="type">
+        <text class="type-stats__item-label">{{item.label}}</text>
+        <text class="type-stats__item-score">{{item.correct}}/{{item.total}}</text>
+        <text class="type-stats__item-accuracy {{item.accuracy >= 80 ? 'type-stats__item-accuracy--good' : item.accuracy >= 50 ? 'type-stats__item-accuracy--mid' : 'type-stats__item-accuracy--bad'}}">{{item.accuracy}}%</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Question Review Section -->
+  <view class="review-section" wx:if="{{results.length > 0}}">
+    <view class="review-section__header">
+      <text class="review-section__title">答题详情</text>
+      <text class="review-section__count">共 {{results.length}} 题</text>
+    </view>
+
+    <!-- Filter tabs -->
+    <view class="filter-tabs">
+      <view class="filter-tabs__item {{filter === 'all' ? 'filter-tabs__item--active' : ''}}" data-filter="all" bindtap="onFilterTap">
+        全部
+      </view>
+      <view class="filter-tabs__item {{filter === 'wrong' ? 'filter-tabs__item--active' : ''}}" data-filter="wrong" bindtap="onFilterTap">
+        只看错题
+      </view>
+      <view
+        class="filter-tabs__item {{filter === item.type ? 'filter-tabs__item--active' : ''}}"
+        wx:for="{{typeStats}}"
+        wx:key="type"
+        data-filter="{{item.type}}"
+        bindtap="onFilterTap">
+        {{item.label}}
+      </view>
+    </view>
+
+    <view class="review-list">
+      <view
+        class="review-item {{item.isCorrect ? 'review-item--correct' : 'review-item--wrong'}}"
+        wx:for="{{showAll ? filteredResults : filteredResults.slice(0, visibleCount)}}"
+        wx:key="index">
+        <!-- Question index and status -->
+        <view class="review-item__header">
+          <text class="review-item__index">第 {{index + 1}} 题</text>
+          <view class="review-item__status">
+            <text wx:if="{{item.isCorrect}}" class="review-item__status--correct">正确</text>
+            <text wx:else class="review-item__status--wrong">错误</text>
+          </view>
+        </view>
+
+        <!-- Question text -->
+        <text class="review-item__question">{{item.question}}</text>
+
+        <!-- Options (compact display) -->
+        <view class="review-item__options">
+          <view
+            class="review-item__option {{opt.isCorrect ? 'review-item__option--correct' : ''}} {{opt.key === item.userAnswerKey && !item.isCorrect && !opt.isCorrect ? 'review-item__option--wrong-user' : ''}}"
+            wx:for="{{item.options}}"
+            wx:for-item="opt"
+            wx:for-index="optIdx"
+            wx:key="optIdx">
+            <text class="review-item__option-text">{{opt.key}}. {{opt.text}}</text>
+            <text class="review-item__option-icon" wx:if="{{opt.isCorrect && item.isCorrect}}">✓</text>
+            <text class="review-item__option-icon review-item__option-icon--correct" wx:if="{{opt.isCorrect && !item.isCorrect}}">✓</text>
+            <text class="review-item__option-icon review-item__option-icon--wrong" wx:if="{{opt.key === item.userAnswerKey && !item.isCorrect && !opt.isCorrect}}">✗</text>
+          </view>
+        </view>
+
+        <!-- Answer summary for wrong answers -->
+        <view class="review-item__answers" wx:if="{{!item.isCorrect}}">
+          <text class="review-item__your-answer">
+            你的答案：<text class="review-item__wrong-text">{{item.userAnswer}}</text>
+          </text>
+          <text class="review-item__correct-answer">
+            正确答案：<text class="review-item__correct-text">{{item.correctAnswer}}</text>
+          </text>
+        </view>
+
+        <!-- Knowledge point hint -->
+        <view class="review-item__hint" wx:if="{{!item.isCorrect && item.hint}}">
+          <text class="review-item__hint-icon">💡</text>
+          <text class="review-item__hint-text">{{item.hint}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Show more button -->
+    <view class="show-more" wx:if="{{!showAll && filteredResults.length > visibleCount}}">
+      <text class="show-more__text">还有 {{filteredResults.length - visibleCount}} 题</text>
+      <button class="btn btn-outline btn-sm show-more__btn" bindtap="onShowMore">查看全部</button>
+    </view>
+
+    <!-- Empty filter result -->
+    <view class="review-empty" wx:if="{{filteredResults.length === 0 && results.length > 0}}">
+      <text class="review-empty__text">该筛选条件下没有题目</text>
+    </view>
+  </view>
+
+  <!-- Bottom safe area -->
+  <view class="safe-bottom" style="height: 120rpx;"></view>
+</view>

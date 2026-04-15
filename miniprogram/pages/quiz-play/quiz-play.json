@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "答题中",
+  "usingComponents": {
+    "quiz-option": "/components/quiz-option/quiz-option",
+    "progress-bar": "/components/progress-bar/progress-bar"
+  }
+}

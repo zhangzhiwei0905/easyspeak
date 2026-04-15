@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "内容库",
+  "navigationBarBackgroundColor": "#667eea",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true,
+  "usingComponents": {}
+}

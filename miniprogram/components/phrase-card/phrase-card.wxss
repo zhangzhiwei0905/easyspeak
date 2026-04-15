@@ -1,0 +1,255 @@
+/* Phrase Card Component */
+.phrase-card {
+  position: relative;
+  margin: 0 0 24rpx 0;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.phrase-card:active {
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+/* Left gradient border */
+.phrase-card__border {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8rpx;
+  z-index: 1;
+}
+
+/* Morning: purple-blue gradient */
+.phrase-card--morning .phrase-card__border {
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Evening: dark-blue */
+.phrase-card--evening .phrase-card__border {
+  background: linear-gradient(180deg, #1a1a2e 0%, #0f3460 100%);
+}
+
+/* Evening dark card style */
+.phrase-card--evening {
+  background: #161b22;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.3);
+}
+
+.phrase-card--evening .phrase-card__phrase {
+  color: #e6edf3;
+}
+
+.phrase-card--evening .phrase-card__explanation {
+  color: #8b949e;
+}
+
+.phrase-card--evening .phrase-card__example-en {
+  color: #c9d1d9;
+}
+
+.phrase-card--evening .phrase-card__example-cn {
+  color: #8b949e;
+}
+
+.phrase-card--evening .phrase-card__divider {
+  background: rgba(88, 166, 255, 0.2);
+}
+
+.phrase-card--evening .phrase-card__source-tag {
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+}
+
+.phrase-card--evening .phrase-card__example-num {
+  background: rgba(88, 166, 255, 0.2);
+  color: #58a6ff;
+}
+
+.phrase-card--evening .phrase-card__source-text {
+  color: #8b949e;
+}
+
+/* Content area */
+.phrase-card__content {
+  padding: 28rpx 28rpx 28rpx 32rpx;
+  margin-left: 8rpx;
+}
+
+/* Header */
+.phrase-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.phrase-card__phrase {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.5;
+  flex: 1;
+  padding-right: 16rpx;
+}
+
+.phrase-card__expand-icon {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8rpx;
+}
+
+.expand-arrow {
+  font-size: 22rpx;
+  color: #999;
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+
+.expand-arrow--up {
+  transform: rotate(180deg);
+}
+
+/* Collapsed section */
+.phrase-card__collapsed {
+  margin-top: 12rpx;
+}
+
+.phrase-card__explanation {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.phrase-card--expanded .phrase-card__explanation {
+  -webkit-line-clamp: unset;
+}
+
+/* Meta / source tag */
+.phrase-card__meta {
+  margin-top: 12rpx;
+}
+
+.phrase-card__source-tag {
+  display: inline-block;
+  font-size: 22rpx;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  line-height: 1.4;
+}
+
+/* Expanded examples section */
+.phrase-card__examples {
+  margin-top: 20rpx;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.phrase-card__divider {
+  height: 1rpx;
+  background: rgba(102, 126, 234, 0.15);
+  margin-bottom: 20rpx;
+}
+
+.phrase-card__example {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20rpx;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  background: #f8f9fc;
+  transition: background 0.2s;
+}
+
+.phrase-card__example:active {
+  background: #eef0f7;
+}
+
+.phrase-card--evening .phrase-card__example {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.phrase-card--evening .phrase-card__example:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.phrase-card__example:last-child {
+  margin-bottom: 0;
+}
+
+.phrase-card__example-num {
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.12);
+  color: #667eea;
+  font-size: 22rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16rpx;
+  margin-top: 4rpx;
+}
+
+.phrase-card__example-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.phrase-card__example-en {
+  font-size: 26rpx;
+  color: #333;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.phrase-card__example-cn {
+  font-size: 24rpx;
+  color: #888;
+  line-height: 1.5;
+  margin-top: 4rpx;
+}
+
+/* Source in expanded view */
+.phrase-card__source-expanded {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed rgba(102, 126, 234, 0.2);
+}
+
+.phrase-card__source-icon {
+  font-size: 24rpx;
+  margin-right: 8rpx;
+}
+
+.phrase-card__source-text {
+  font-size: 22rpx;
+  color: #999;
+}

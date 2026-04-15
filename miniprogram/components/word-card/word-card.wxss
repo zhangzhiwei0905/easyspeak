@@ -1,0 +1,166 @@
+/* Word Card - Flashcard with 3D Flip */
+.word-card {
+  perspective: 1000rpx;
+  width: 100%;
+  height: 360rpx;
+}
+
+.word-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.word-card__inner--flipped {
+  transform: rotateY(180deg);
+}
+
+.word-card__face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+/* Front face */
+.word-card__face--front {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.3);
+}
+
+.word-card__front-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32rpx;
+}
+
+.word-card__word {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 2rpx;
+  margin-bottom: 16rpx;
+  text-align: center;
+}
+
+.word-card__phonetic {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 32rpx;
+  text-align: center;
+}
+
+.word-card__tap-hint {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+/* Back face */
+.word-card__face--back {
+  background: #ffffff;
+  transform: rotateY(180deg);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.word-card__back-content {
+  width: 100%;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.word-card__back-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+  gap: 12rpx;
+}
+
+.word-card__back-word {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.word-card__pos {
+  display: inline-block;
+  font-size: 22rpx;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 4rpx 14rpx;
+  border-radius: 6rpx;
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.word-card__meaning-section {
+  margin-bottom: 20rpx;
+}
+
+.word-card__meaning-label {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+  text-transform: uppercase;
+  letter-spacing: 2rpx;
+}
+
+.word-card__meaning {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.5;
+}
+
+.word-card__example-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.word-card__example-label {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+  text-transform: uppercase;
+  letter-spacing: 2rpx;
+}
+
+.word-card__example {
+  display: block;
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.6;
+  font-style: italic;
+  background: #f8f9fc;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  border-left: 4rpx solid #667eea;
+}
+
+/* Tap hint on back */
+.word-card__face--back .word-card__tap-hint {
+  color: #ccc;
+  margin-top: auto;
+  padding-top: 12rpx;
+  text-align: center;
+}

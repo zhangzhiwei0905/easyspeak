@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "智能复习",
+  "usingComponents": {
+    "calendar": "/components/calendar/calendar",
+    "progress-bar": "/components/progress-bar/progress-bar",
+    "word-card": "/components/word-card/word-card"
+  }
+}

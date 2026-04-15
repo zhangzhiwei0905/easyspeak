@@ -1,0 +1,62 @@
+/* Progress Bar Component */
+.progress-bar {
+  width: 100%;
+  padding: 0;
+}
+
+.progress-bar__track {
+  width: 100%;
+  background: #f0f2f5;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar__fill {
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  min-width: 0;
+}
+
+/* Animated shimmer effect on the fill */
+.progress-bar__fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progress-bar__info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8rpx;
+}
+
+.progress-bar__text {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.progress-bar__pct {
+  font-size: 22rpx;
+  color: #999;
+  font-weight: 600;
+}

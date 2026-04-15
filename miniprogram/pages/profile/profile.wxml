@@ -1,0 +1,88 @@
+<!-- pages/profile/profile.wxml -->
+<view class="page">
+
+  <!-- User Info Header -->
+  <view class="profile-header">
+    <view class="avatar-wrap">
+      <image class="avatar" src="{{userInfo.avatarUrl || '/static/icons/default-avatar.png'}}" mode="aspectFill" bindtap="onChooseAvatar" />
+      <view class="avatar-badge">✨</view>
+    </view>
+    <view class="user-info">
+      <text class="nickname">{{userInfo.nickName || '英语学习者'}}</text>
+      <text class="user-desc">每天进步一点点 🚀</text>
+    </view>
+  </view>
+
+  <!-- Stats Card -->
+  <view class="card stats-card">
+    <view class="section-title-row">
+      <text class="section-icon">📊</text>
+      <text class="section-title">学习统计</text>
+    </view>
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-icon">🔥</text>
+        <text class="stat-value">{{stats.studyStreak || 0}}</text>
+        <text class="stat-label">连续学习(天)</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-icon">📚</text>
+        <text class="stat-value">{{stats.totalPhrases || 0}}</text>
+        <text class="stat-label">累计短语(个)</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-icon">📖</text>
+        <text class="stat-value">{{stats.totalWords || 0}}</text>
+        <text class="stat-label">累计单词(个)</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-icon">🎯</text>
+        <text class="stat-value">{{stats.totalQuiz || 0}}</text>
+        <text class="stat-label">总答题数</text>
+      </view>
+      <view class="stat-item stat-item-wide">
+        <text class="stat-icon">✅</text>
+        <text class="stat-value">{{stats.avgAccuracy || 0}}%</text>
+        <text class="stat-label">平均正确率</text>
+        <view class="accuracy-bar">
+          <view class="accuracy-bar-fill" style="width: {{stats.avgAccuracy || 0}}%"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Achievement Badges -->
+  <view class="card achievements-card">
+    <view class="section-title-row">
+      <text class="section-icon">🏆</text>
+      <text class="section-title">成就徽章</text>
+    </view>
+    <view class="badges-grid">
+      <view class="badge-item {{item.unlocked ? 'badge-unlocked' : 'badge-locked'}}" wx:for="{{achievements}}" wx:key="id">
+        <view class="badge-icon-wrap">
+          <text class="badge-icon">{{item.icon}}</text>
+        </view>
+        <text class="badge-name">{{item.name}}</text>
+        <text class="badge-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Quick Settings Preview -->
+  <view class="card settings-preview" bindtap="goToSettings">
+    <view class="settings-preview-row">
+      <view class="flex items-center">
+        <text class="settings-icon">⚙️</text>
+        <text class="settings-label">设置</text>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+  </view>
+
+  <!-- Version Info -->
+  <view class="version-info">
+    <text class="version-text">EasySpeak v1.0.0</text>
+    <text class="version-sub">Made with ❤️ for English Learners</text>
+  </view>
+
+</view>

@@ -1,0 +1,12 @@
+<view class="progress-bar">
+  <view class="progress-bar__track" style="height: {{height}}rpx; border-radius: {{height / 2}}rpx;">
+    <view 
+      class="progress-bar__fill" 
+      style="width: {{barWidth}}; height: {{height}}rpx; border-radius: {{height / 2}}rpx; background: {{color}};"
+    ></view>
+  </view>
+  <view class="progress-bar__info">
+    <text class="progress-bar__text">{{current}}/{{total}}</text>
+    <text class="progress-bar__pct">{{displayPercentage}}%</text>
+  </view>
+</view>

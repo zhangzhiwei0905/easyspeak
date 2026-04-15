@@ -1,0 +1,322 @@
+/* ========================================
+   Library Page Styles
+   ======================================== */
+
+/* ---------- Search Bar ---------- */
+.search-bar {
+  padding: 0 0 var(--spacing-md) 0;
+  cursor: pointer;
+}
+
+.search-bar__inner {
+  display: flex;
+  align-items: center;
+  background: var(--color-card);
+  border-radius: var(--radius-round);
+  padding: 18rpx var(--spacing-card);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s;
+}
+
+.search-bar:active .search-bar__inner {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.search-bar__icon {
+  font-size: 28rpx;
+  margin-right: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.search-bar__placeholder {
+  font-size: var(--font-size-body);
+  color: var(--color-text-hint);
+}
+
+/* ---------- Filter Tabs ---------- */
+.filter-tabs {
+  display: flex;
+  background: var(--color-card);
+  border-radius: var(--radius-round);
+  padding: 6rpx;
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.filter-tabs__item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 0;
+  border-radius: var(--radius-round);
+  transition: all 0.3s ease;
+}
+
+.filter-tabs__item--active {
+  background: var(--color-primary-gradient);
+  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.3);
+}
+
+.filter-tabs__text {
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-tabs__item--active .filter-tabs__text {
+  color: #ffffff;
+}
+
+/* ---------- Skeleton ---------- */
+.library-page .skeleton {
+  padding: 0;
+}
+
+.library-page .skeleton__card {
+  background: var(--color-card);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-card);
+  margin-bottom: var(--spacing-md);
+}
+
+.library-page .skeleton__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.library-page .skeleton__line {
+  height: 28rpx;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400% 100%;
+  border-radius: 8rpx;
+  margin-bottom: 20rpx;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.library-page .skeleton__line--short {
+  width: 30%;
+  margin-bottom: 0;
+}
+
+.library-page .skeleton__line--title {
+  width: 55%;
+  height: 32rpx;
+  margin-bottom: 0;
+}
+
+.library-page .skeleton__line--body {
+  width: 80%;
+  margin-bottom: 0;
+}
+
+/* ---------- Error State ---------- */
+.library-page .error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx var(--spacing-page);
+}
+
+.library-page .error-state__icon {
+  font-size: 120rpx;
+  margin-bottom: var(--spacing-lg);
+}
+
+.library-page .error-state__text {
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
+/* ---------- Empty State Override ---------- */
+.library-page .empty-state__icon {
+  font-size: 120rpx;
+  margin-bottom: var(--spacing-lg);
+}
+
+.library-page .empty-state__title {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.library-page .empty-state__desc {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Date Group ---------- */
+.date-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.date-group__header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  margin-bottom: var(--spacing-sm);
+}
+
+.date-group__line {
+  flex: 1;
+  height: 1rpx;
+  background: var(--color-border);
+}
+
+.date-group__label {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-hint);
+  padding: 0 var(--spacing-md);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* ---------- Content Card ---------- */
+.content-card {
+  padding: var(--spacing-card);
+  margin-bottom: var(--spacing-md);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.content-card:active {
+  box-shadow: var(--shadow-card-hover);
+  transform: scale(0.99);
+}
+
+.content-card__header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.content-card__icon {
+  font-size: 44rpx;
+  margin-right: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.content-card__theme {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.content-card__theme-zh {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-card__theme-en {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  margin-top: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-card__arrow {
+  flex-shrink: 0;
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--spacing-xs);
+}
+
+.content-card__arrow-icon {
+  font-size: 40rpx;
+  color: var(--color-text-hint);
+  font-weight: 300;
+}
+
+.content-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.content-card__stats {
+  display: flex;
+  align-items: center;
+}
+
+.content-card__stat {
+  font-size: var(--font-size-small);
+  color: var(--color-text-hint);
+}
+
+.content-card__stat-divider {
+  margin: 0 12rpx;
+  color: var(--color-border);
+  font-size: var(--font-size-small);
+}
+
+.content-card__mastery {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.content-card__mastery-icon {
+  font-size: 24rpx;
+}
+
+.content-card__mastery-text {
+  font-size: var(--font-size-small);
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+/* ---------- Load More ---------- */
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg) 0;
+  gap: 12rpx;
+}
+
+.load-more__spinner {
+  width: 32rpx;
+  height: 32rpx;
+  border: 4rpx solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.load-more__text {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-hint);
+}
+
+.load-more__text--end {
+  color: var(--color-text-hint);
+  font-size: var(--font-size-small);
+}
+
+/* ---------- Shimmer Animation ---------- */
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

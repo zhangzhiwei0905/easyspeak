@@ -1,0 +1,64 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/library/library",
+    "pages/review/review",
+    "pages/quiz/quiz",
+    "pages/profile/profile",
+    "pages/detail/detail",
+    "pages/phrase-detail/phrase-detail",
+    "pages/word-list/word-list",
+    "pages/search/search",
+    "pages/quiz-play/quiz-play",
+    "pages/quiz-result/quiz-result",
+    "pages/settings/settings"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#667eea",
+    "navigationBarTitleText": "EasySpeak",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f0f2f5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#667eea",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/icons/home.png",
+        "selectedIconPath": "static/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/library/library",
+        "text": "内容库",
+        "iconPath": "static/icons/library.png",
+        "selectedIconPath": "static/icons/library-active.png"
+      },
+      {
+        "pagePath": "pages/review/review",
+        "text": "复习",
+        "iconPath": "static/icons/review.png",
+        "selectedIconPath": "static/icons/review-active.png"
+      },
+      {
+        "pagePath": "pages/quiz/quiz",
+        "text": "测验",
+        "iconPath": "static/icons/quiz.png",
+        "selectedIconPath": "static/icons/quiz-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/icons/profile.png",
+        "selectedIconPath": "static/icons/profile-active.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

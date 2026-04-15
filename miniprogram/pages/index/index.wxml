@@ -1,0 +1,222 @@
+<!-- EasySpeak Index Page (首页) -->
+<view class="page index-page">
+
+  <!-- ========== Loading Skeleton ========== -->
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="skeleton__date-picker">
+      <view class="skeleton__line skeleton__line--short"></view>
+    </view>
+    <view class="skeleton__card">
+      <view class="skeleton__line skeleton__line--title"></view>
+      <view class="skeleton__line skeleton__line--body"></view>
+      <view class="skeleton__line skeleton__line--btn"></view>
+    </view>
+    <view class="skeleton__card">
+      <view class="skeleton__line skeleton__line--section"></view>
+      <view class="skeleton__line skeleton__line--long"></view>
+      <view class="skeleton__line skeleton__line--long"></view>
+      <view class="skeleton__line skeleton__line--medium"></view>
+    </view>
+    <view class="skeleton__card">
+      <view class="skeleton__line skeleton__line--section"></view>
+      <view class="skeleton__rect skeleton__rect--word"></view>
+    </view>
+    <view class="skeleton__card">
+      <view class="skeleton__line skeleton__line--section"></view>
+      <view class="skeleton__bar"></view>
+      <view class="skeleton__bar"></view>
+    </view>
+  </view>
+
+  <!-- ========== Error State ========== -->
+  <view class="error-state" wx:if="{{error && !loading}}">
+    <text class="error-state__icon">😞</text>
+    <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
+    <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- ========== Empty State ========== -->
+  <view class="empty-state" wx:if="{{isEmpty && !loading && !error}}">
+    <text class="empty-state__icon">📭</text>
+    <text class="empty-state__title">暂无内容</text>
+    <text class="empty-state__desc">{{currentDateDisplay}} {{currentWeekday}} {{timeSlot === 'morning' ? '晨间' : '晚间'}}推送尚未发布</text>
+    <text class="empty-state__hint">每日 9:00 和 18:00 更新</text>
+  </view>
+
+  <!-- ========== Main Content ========== -->
+  <block wx:if="{{!loading && !error && !isEmpty}}">
+
+    <!-- 1. Date Picker -->
+    <view class="date-picker card-flat">
+      <view class="date-picker__nav" bindtap="onPrevDate">
+        <text class="date-picker__arrow">‹</text>
+      </view>
+      <view class="date-picker__center" bindtap="onBackToToday">
+        <view class="date-picker__time-slot">
+          <view class="time-slot-btn {{timeSlot === 'morning' ? 'time-slot-btn--active' : ''}}" 
+                data-slot="morning" bindtap="onTimeSlotChange">
+            <text class="time-slot-btn__icon">☀️</text>
+            <text class="time-slot-btn__text">晨间</text>
+          </view>
+          <view class="time-slot-btn {{timeSlot === 'evening' ? 'time-slot-btn--active' : ''}}" 
+                data-slot="evening" bindtap="onTimeSlotChange">
+            <text class="time-slot-btn__icon">🌙</text>
+            <text class="time-slot-btn__text">晚间</text>
+          </view>
+        </view>
+        <text class="date-picker__date">{{currentDateDisplay}} {{currentWeekday}}</text>
+      </view>
+      <view class="date-picker__nav" bindtap="onNextDate">
+        <text class="date-picker__arrow {{currentDate >= today ? 'date-picker__arrow--disabled' : ''}}">›</text>
+      </view>
+    </view>
+
+    <!-- 2. Today's Push Card -->
+    <view class="push-card card-gradient animate-fade-in">
+      <view class="push-card__header">
+        <text class="push-card__emoji">{{timeSlot === 'morning' ? '☀️' : '🌙'}}</text>
+        <view class="push-card__theme">
+          <text class="push-card__theme-zh">{{content.theme_zh}}</text>
+          <text class="push-card__theme-en">{{content.theme_en}}</text>
+        </view>
+      </view>
+      <text class="push-card__intro" wx:if="{{content.introduction}}">{{content.introduction}}</text>
+      <view class="push-card__stats">
+        <text class="push-card__stat">{{phrases.length}} 个短语</text>
+        <text class="push-card__stat-divider">·</text>
+        <text class="push-card__stat">{{words.length}} 个单词</text>
+      </view>
+      <view class="push-card__action" bindtap="onViewDetail">
+        <text class="push-card__btn-text">查看详情</text>
+        <text class="push-card__btn-arrow">→</text>
+      </view>
+    </view>
+
+    <!-- 3. Today's Phrases -->
+    <view class="section animate-slide-up" wx:if="{{phrases.length > 0}}">
+      <view class="section__header">
+        <view class="section__title-row">
+          <text class="section__icon">📝</text>
+          <text class="section__title">今日短语速览</text>
+        </view>
+        <view class="section__more" bindtap="onViewAllPhrases">
+          <text class="section__more-text">查看全部</text>
+          <text class="section__more-arrow">→</text>
+        </view>
+      </view>
+      <view class="phrases-list">
+        <view class="phrase-item" 
+              wx:for="{{phrases}}" 
+              wx:key="id"
+              data-id="{{item.id}}"
+              bindtap="onPhraseTap">
+          <phrase-card 
+            phrase="{{item.phrase}}" 
+            explanation="{{item.explanation}}"
+            examples="{{item.examples}}"
+            source="{{item.source}}"
+            timeSlot="{{timeSlot}}"
+            showDetail="{{false}}"
+            bind:toggle="onPhraseToggle">
+          </phrase-card>
+        </view>
+      </view>
+    </view>
+
+    <!-- 4. Today's Words Preview -->
+    <view class="section animate-slide-up" wx:if="{{words.length > 0}}" style="animation-delay: 0.1s">
+      <view class="section__header">
+        <view class="section__title-row">
+          <text class="section__icon">📖</text>
+          <text class="section__title">今日单词预览</text>
+        </view>
+        <view class="section__more" bindtap="onViewAllWords">
+          <text class="section__more-text">查看全部</text>
+          <text class="section__more-arrow">→</text>
+        </view>
+      </view>
+      <scroll-view class="words-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="words-scroll__inner">
+          <view class="words-scroll__item" wx:for="{{words}}" wx:key="id">
+            <word-card 
+              word="{{item.word}}" 
+              phonetic="{{item.phonetic}}"
+              partOfSpeech="{{item.partOfSpeech}}"
+              meaning="{{item.meaning}}"
+              example="{{item.example}}">
+            </word-card>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="words-scroll__hint">
+        <text class="words-scroll__hint-text">← 左右滑动查看更多单词 →</text>
+      </view>
+    </view>
+
+    <!-- 5. Today's Study Progress -->
+    <view class="section progress-section animate-slide-up" style="animation-delay: 0.2s">
+      <view class="section__header">
+        <view class="section__title-row">
+          <text class="section__icon">📊</text>
+          <text class="section__title">今日学习进度</text>
+        </view>
+      </view>
+      <view class="progress-section__content card">
+        <view class="progress-section__item">
+          <view class="progress-section__label">
+            <text class="progress-section__label-icon">💬</text>
+            <text class="progress-section__label-text">短语</text>
+          </view>
+          <progress-bar 
+            current="{{phraseProgress.current}}" 
+            total="{{phraseProgress.total}}" 
+            color="#667eea"
+            height="20">
+          </progress-bar>
+        </view>
+        <view class="progress-section__item">
+          <view class="progress-section__label">
+            <text class="progress-section__label-icon">📚</text>
+            <text class="progress-section__label-text">单词</text>
+          </view>
+          <progress-bar 
+            current="{{wordProgress.current}}" 
+            total="{{wordProgress.total}}" 
+            color="#764ba2"
+            height="20">
+          </progress-bar>
+        </view>
+      </view>
+    </view>
+
+    <!-- 6. Review Reminder -->
+    <view class="section review-section animate-slide-up" style="animation-delay: 0.3s" wx:if="{{reviewDueCount > 0}}">
+      <view class="review-card card">
+        <view class="review-card__header">
+          <text class="review-card__icon">🧠</text>
+          <view class="review-card__title-wrap">
+            <text class="review-card__title">今日待复习</text>
+            <view class="badge">{{reviewDueCount}}</view>
+          </view>
+        </view>
+        <text class="review-card__desc">有 {{reviewDueCount}} 个内容到了复习时间，快来巩固一下吧！</text>
+        <view class="review-card__action" bindtap="onStartReview">
+          <text class="review-card__btn-text">开始复习</text>
+          <text class="review-card__btn-arrow">→</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- No review needed -->
+    <view class="section animate-slide-up" style="animation-delay: 0.3s" wx:if="{{reviewDueCount === 0}}">
+      <view class="review-done-card card">
+        <text class="review-done-card__icon">✅</text>
+        <text class="review-done-card__text">暂无待复习内容，继续保持！</text>
+      </view>
+    </view>
+
+  </block>
+
+  <!-- Bottom safe area spacer -->
+  <view class="safe-bottom" style="height: 120rpx;"></view>
+</view>

@@ -1,0 +1,169 @@
+<!-- EasySpeak Detail Page (推送详情页) -->
+<view class="page detail-page">
+
+  <!-- ========== Loading Skeleton ========== -->
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="skeleton__header">
+      <view class="skeleton__circle"></view>
+      <view class="skeleton__header-text">
+        <view class="skeleton__line skeleton__line--title"></view>
+        <view class="skeleton__line skeleton__line--short"></view>
+      </view>
+    </view>
+    <view class="skeleton__card">
+      <view class="skeleton__line skeleton__line--body"></view>
+      <view class="skeleton__line skeleton__line--long"></view>
+    </view>
+    <view class="skeleton__card">
+      <view class="skeleton__line skeleton__line--section"></view>
+      <view class="skeleton__line skeleton__line--long"></view>
+      <view class="skeleton__line skeleton__line--medium"></view>
+    </view>
+  </view>
+
+  <!-- ========== Error State ========== -->
+  <view class="error-state" wx:if="{{error && !loading}}">
+    <text class="error-state__icon">😞</text>
+    <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
+    <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- ========== Main Content ========== -->
+  <block wx:if="{{!loading && !error}}">
+
+    <!-- 1. Theme Header with Gradient -->
+    <view class="detail-header {{timeSlot === 'evening' ? 'detail-header--evening' : 'detail-header--morning'}}">
+      <view class="detail-header__top">
+        <text class="detail-header__icon">{{timeSlotIcon}}</text>
+        <view class="detail-header__info">
+          <text class="detail-header__slot">{{timeSlotLabel}}</text>
+          <text class="detail-header__date">{{dateDisplay}} {{weekday}}</text>
+        </view>
+      </view>
+      <view class="detail-header__theme">
+        <text class="detail-header__theme-zh">{{themeZh}}</text>
+        <text class="detail-header__theme-en">{{themeEn}}</text>
+      </view>
+      <view class="detail-header__stats">
+        <view class="detail-header__stat-item">
+          <text class="detail-header__stat-num">{{phrases.length}}</text>
+          <text class="detail-header__stat-label">个短语</text>
+        </view>
+        <view class="detail-header__stat-divider"></view>
+        <view class="detail-header__stat-item">
+          <text class="detail-header__stat-num">{{words.length}}</text>
+          <text class="detail-header__stat-label">个单词</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 2. Introduction -->
+    <view class="detail-section animate-fade-in" wx:if="{{introduction}}">
+      <view class="section-label">
+        <text class="section-label__icon">📖</text>
+        <text class="section-label__text">主题介绍</text>
+      </view>
+      <view class="intro-card card">
+        <text class="intro-card__text">{{introduction}}</text>
+      </view>
+    </view>
+
+    <!-- 3. Practice Tips -->
+    <view class="detail-section animate-fade-in" wx:if="{{practiceTips}}" style="animation-delay: 0.05s">
+      <view class="section-label">
+        <text class="section-label__icon">💡</text>
+        <text class="section-label__text">练习建议</text>
+      </view>
+      <view class="tips-card card">
+        <text class="tips-card__text">{{practiceTips}}</text>
+      </view>
+    </view>
+
+    <!-- 4. Phrases / Words Tab -->
+    <view class="detail-section animate-fade-in" style="animation-delay: 0.1s">
+      <view class="tab-bar">
+        <view class="tab-bar__item {{activeTab === 'phrases' ? 'tab-bar__item--active' : ''}}"
+              data-tab="phrases" bindtap="onTabChange">
+          <text class="tab-bar__text">📝 短语 ({{phrases.length}})</text>
+        </view>
+        <view class="tab-bar__item {{activeTab === 'words' ? 'tab-bar__item--active' : ''}}"
+              data-tab="words" bindtap="onTabChange">
+          <text class="tab-bar__text">📚 单词 ({{words.length}})</text>
+        </view>
+      </view>
+
+      <!-- Phrases List -->
+      <view class="tab-content" wx:if="{{activeTab === 'phrases'}}">
+        <view class="phrases-list">
+          <view class="phrase-wrapper" 
+                wx:for="{{phrases}}" 
+                wx:key="id"
+                data-index="{{index}}"
+                bindtap="onPhraseToggle">
+            <phrase-card 
+              phrase="{{item.phrase}}" 
+              explanation="{{item.explanation}}"
+              examples="{{item.examples}}"
+              source="{{item.source}}"
+              timeSlot="{{timeSlot}}"
+              showDetail="{{expandedPhraseIndex === index}}">
+            </phrase-card>
+          </view>
+        </view>
+        <view class="list-end-hint" wx:if="{{phrases.length > 0}}">
+          <text class="list-end-hint__text">共 {{phrases.length}} 个短语</text>
+        </view>
+        <view class="empty-inline" wx:if="{{phrases.length === 0}}">
+          <text class="empty-inline__text">暂无短语内容</text>
+        </view>
+      </view>
+
+      <!-- Words Grid -->
+      <view class="tab-content" wx:if="{{activeTab === 'words'}}">
+        <view class="words-grid">
+          <view class="words-grid__item" 
+                wx:for="{{words}}" 
+                wx:key="id"
+                data-word="{{item.word}}"
+                bindtap="onWordTap">
+            <word-card 
+              word="{{item.word}}" 
+              phonetic="{{item.phonetic}}"
+              partOfSpeech="{{item.partOfSpeech}}"
+              meaning="{{item.meaning}}"
+              example="{{item.example}}">
+            </word-card>
+          </view>
+        </view>
+        <view class="list-end-hint" wx:if="{{words.length > 0}}">
+          <text class="list-end-hint__text">共 {{words.length}} 个单词</text>
+        </view>
+        <view class="empty-inline" wx:if="{{words.length === 0}}">
+          <text class="empty-inline__text">暂无单词内容</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Bottom spacer for fixed button -->
+    <view style="height: 180rpx;"></view>
+  </block>
+
+  <!-- 5. Fixed Bottom Button -->
+  <view class="bottom-bar safe-bottom" wx:if="{{!loading && !error}}">
+    <button class="start-study-btn {{hasStudied ? 'start-study-btn--done' : ''}}"
+            bindtap="onStartStudy"
+            disabled="{{hasStudied || studying}}">
+      <block wx:if="{{hasStudied}}">
+        <text class="start-study-btn__icon">✅</text>
+        <text class="start-study-btn__text">今日已学习</text>
+      </block>
+      <block wx:elif="{{studying}}">
+        <text class="start-study-btn__text">记录中...</text>
+      </block>
+      <block wx:else>
+        <text class="start-study-btn__icon">🚀</text>
+        <text class="start-study-btn__text">开始学习</text>
+      </block>
+    </button>
+  </view>
+</view>

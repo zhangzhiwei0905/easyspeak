@@ -1,0 +1,106 @@
+<!-- pages/search/search.wxml -->
+<view class="page page-no-padding">
+
+  <!-- Search Bar -->
+  <view class="search-bar-wrap">
+    <view class="search-bar">
+      <text class="search-icon">🔍</text>
+      <input
+        class="search-input"
+        type="text"
+        placeholder="搜索短语、单词或主题..."
+        placeholder-class="search-placeholder"
+        value="{{keyword}}"
+        focus="{{autoFocus}}"
+        confirm-type="search"
+        bindinput="onInput"
+        bindconfirm="onConfirm"
+      />
+      <text class="search-clear" wx:if="{{keyword}}" bindtap="onClear">✕</text>
+    </view>
+    <text class="search-cancel" bindtap="onCancelSearch">取消</text>
+  </view>
+
+  <!-- Content Area -->
+  <view class="search-content">
+
+    <!-- Initial State: History -->
+    <view wx:if="{{!hasSearched && !loading}}" class="history-section">
+      <view class="flex-between mb-md" wx:if="{{searchHistory.length > 0}}">
+        <text class="section-title-sm">最近搜索</text>
+        <text class="clear-history-btn" bindtap="onClearHistory">🗑️ 清空</text>
+      </view>
+
+      <view class="history-tags" wx:if="{{searchHistory.length > 0}}">
+        <view class="history-tag" wx:for="{{searchHistory}}" wx:key="*this" bindtap="onHistoryTap" data-keyword="{{item}}">
+          <text class="history-tag-text">{{item}}</text>
+        </view>
+      </view>
+
+      <!-- Hot topics placeholder -->
+      <view class="hot-section" wx:if="{{searchHistory.length === 0}}">
+        <text class="section-title-sm mb-md">热门主题</text>
+        <view class="history-tags">
+          <view class="history-tag" wx:for="{{hotTopics}}" wx:key="*this" bindtap="onHistoryTap" data-keyword="{{item}}">
+            <text class="history-tag-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Loading State -->
+    <view wx:if="{{loading}}" class="loading-state">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">搜索中...</text>
+    </view>
+
+    <!-- No Results -->
+    <view wx:if="{{hasSearched && !loading && phraseResults.length === 0 && wordResults.length === 0}}" class="empty-state">
+      <text class="empty-state-icon">🔍</text>
+      <text class="empty-state-text">未找到 "{{keyword}}" 相关内容</text>
+      <text class="empty-state-hint mt-sm">试试其他关键词吧</text>
+    </view>
+
+    <!-- Results -->
+    <view wx:if="{{hasSearched && !loading && (phraseResults.length > 0 || wordResults.length > 0)}}">
+
+      <!-- Phrase Results -->
+      <view class="result-section" wx:if="{{phraseResults.length > 0}}">
+        <view class="result-section-header">
+          <text class="result-section-icon">💬</text>
+          <text class="result-section-title">短语</text>
+          <text class="result-section-count">{{phraseResults.length}} 条结果</text>
+        </view>
+        <view class="result-card" wx:for="{{phraseResults}}" wx:key="id" bindtap="onPhraseTap" data-id="{{item.id}}">
+          <view class="result-phrase-text">{{item.phrase}}</view>
+          <view class="result-meta">
+            <text class="result-theme tag">{{item.theme || '日常'}}</text>
+            <text class="result-date">{{item.date || ''}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Word Results -->
+      <view class="result-section" wx:if="{{wordResults.length > 0}}">
+        <view class="result-section-header">
+          <text class="result-section-icon">📖</text>
+          <text class="result-section-title">单词</text>
+          <text class="result-section-count">{{wordResults.length}} 条结果</text>
+        </view>
+        <view class="result-card" wx:for="{{wordResults}}" wx:key="id" bindtap="onWordTap" data-id="{{item.id}}">
+          <view class="result-word-row">
+            <text class="result-word">{{item.word}}</text>
+            <text class="result-phonetic">{{item.phonetic || ''}}</text>
+          </view>
+          <view class="result-meaning">{{item.meaning || ''}}</view>
+          <view class="result-meta">
+            <text class="result-theme tag">{{item.theme || '日常'}}</text>
+            <text class="result-date">{{item.date || ''}}</text>
+          </view>
+        </view>
+      </view>
+
+    </view>
+
+  </view>
+</view>

@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "EasySpeak",
+  "navigationBarBackgroundColor": "#667eea",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "phrase-card": "../../components/phrase-card/phrase-card",
+    "word-card": "../../components/word-card/word-card",
+    "progress-bar": "../../components/progress-bar/progress-bar"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "单词列表",
+  "navigationBarBackgroundColor": "#667eea",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": false,
+  "usingComponents": {}
+}

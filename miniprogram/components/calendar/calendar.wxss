@@ -1,0 +1,138 @@
+/* Calendar Component */
+.calendar {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+/* Header with navigation */
+.calendar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28rpx;
+}
+
+.calendar__nav-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.calendar__nav-btn:active {
+  background: #e0e3e8;
+}
+
+.calendar__nav-arrow {
+  font-size: 36rpx;
+  color: #666;
+  font-weight: 300;
+  line-height: 1;
+  margin-top: -4rpx;
+}
+
+.calendar__month-label {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+/* Weekday row */
+.calendar__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 12rpx;
+}
+
+.calendar__weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56rpx;
+}
+
+.calendar__weekday-text {
+  font-size: 24rpx;
+  color: #999;
+  font-weight: 500;
+}
+
+/* Days grid */
+.calendar__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4rpx;
+}
+
+.calendar__day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  border-radius: 12rpx;
+  transition: background 0.2s;
+}
+
+.calendar__day:not(.calendar__day--empty):active {
+  background: #f0f2f5;
+}
+
+/* Empty cells */
+.calendar__day--empty {
+  pointer-events: none;
+}
+
+/* Day number */
+.calendar__day-num {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 400;
+  line-height: 1;
+}
+
+/* Today highlight */
+.calendar__day--today {
+  background: rgba(102, 126, 234, 0.08);
+  border: 2rpx solid #667eea;
+  border-radius: 12rpx;
+}
+
+.calendar__day--today .calendar__day-num {
+  color: #667eea;
+  font-weight: 700;
+}
+
+/* Studied date green dot */
+.calendar__day--studied .calendar__day-num {
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.calendar__day-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #52c41a;
+  margin-top: 4rpx;
+  position: absolute;
+  bottom: 8rpx;
+}
+
+/* Today + studied combined */
+.calendar__day--today.calendar__day--studied {
+  background: rgba(82, 196, 26, 0.08);
+  border-color: #52c41a;
+}
+
+.calendar__day--today.calendar__day--studied .calendar__day-num {
+  color: #52c41a;
+}

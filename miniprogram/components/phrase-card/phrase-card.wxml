@@ -1,0 +1,36 @@
+<view class="phrase-card phrase-card--{{timeSlot}} {{expanded ? 'phrase-card--expanded' : ''}}" bindtap="onTapCard">
+  <view class="phrase-card__border"></view>
+  <view class="phrase-card__content">
+    <!-- Header: phrase text -->
+    <view class="phrase-card__header">
+      <text class="phrase-card__phrase">{{phrase}}</text>
+      <view class="phrase-card__expand-icon">
+        <text class="expand-arrow {{expanded ? 'expand-arrow--up' : ''}}">▼</text>
+      </view>
+    </view>
+
+    <!-- Collapsed: brief explanation + source -->
+    <view class="phrase-card__collapsed">
+      <text class="phrase-card__explanation">{{explanation}}</text>
+      <view class="phrase-card__meta" wx:if="{{source}}">
+        <text class="phrase-card__source-tag">{{source}}</text>
+      </view>
+    </view>
+
+    <!-- Expanded: examples -->
+    <view class="phrase-card__examples" wx:if="{{expanded}}">
+      <view class="phrase-card__divider"></view>
+      <view class="phrase-card__example" wx:for="{{examples}}" wx:key="index" data-index="{{index}}" catchtap="onExampleTap">
+        <view class="phrase-card__example-num">{{index + 1}}</view>
+        <view class="phrase-card__example-content">
+          <text class="phrase-card__example-en">{{item.en}}</text>
+          <text class="phrase-card__example-cn">{{item.cn}}</text>
+        </view>
+      </view>
+      <view class="phrase-card__source-expanded" wx:if="{{source}}">
+        <text class="phrase-card__source-icon">🎬</text>
+        <text class="phrase-card__source-text">来源：{{source}}</text>
+      </view>
+    </view>
+  </view>
+</view>

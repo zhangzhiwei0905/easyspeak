@@ -1,0 +1,17 @@
+<view 
+  class="quiz-option {{selected ? 'quiz-option--selected' : ''}} {{showResult && correct ? 'quiz-option--correct' : ''}} {{showResult && selected && !correct ? 'quiz-option--wrong' : ''}} {{disabled ? 'quiz-option--disabled' : ''}}"
+  bindtap="onTapOption"
+>
+  <view class="quiz-option__key">
+    <text>{{key}}</text>
+  </view>
+  <view class="quiz-option__text">
+    <text>{{text}}</text>
+  </view>
+  <view class="quiz-option__icon" wx:if="{{showResult && correct}}">
+    <text class="icon-correct">✓</text>
+  </view>
+  <view class="quiz-option__icon" wx:if="{{showResult && selected && !correct}}">
+    <text class="icon-wrong">✗</text>
+  </view>
+</view>

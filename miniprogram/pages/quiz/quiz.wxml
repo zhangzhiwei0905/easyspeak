@@ -1,0 +1,160 @@
+<!-- EasySpeak Quiz Page (测验中心) -->
+<view class="page quiz-page">
+
+  <!-- Loading Skeleton -->
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="skeleton__card" style="height: 200rpx;"></view>
+    <view class="skeleton__card" style="height: 280rpx;"></view>
+    <view class="skeleton__card" style="height: 160rpx;"></view>
+    <view class="skeleton__card" style="height: 200rpx;"></view>
+  </view>
+
+  <!-- Main Content -->
+  <block wx:if="{{!loading}}">
+
+    <!-- Page Header -->
+    <view class="quiz-header">
+      <text class="quiz-header__title">🎯 测验中心</text>
+      <text class="quiz-header__desc">检验学习成果，巩固知识记忆</text>
+    </view>
+
+    <!-- 1. ⚡ 闪电测验 -->
+    <view class="mode-card mode-card--lightning animate-fade-in" bindtap="onStartLightning">
+      <view class="mode-card__icon-wrap">
+        <text class="mode-card__icon">⚡</text>
+      </view>
+      <view class="mode-card__content">
+        <text class="mode-card__title">闪电测验</text>
+        <text class="mode-card__desc">10道随机题 · 3分钟限时挑战</text>
+      </view>
+      <view class="mode-card__action">
+        <text class="mode-card__action-text">开始挑战</text>
+        <text class="mode-card__action-arrow">→</text>
+      </view>
+    </view>
+
+    <!-- 2. 🧩 填空挑战 -->
+    <view class="mode-card mode-card--fill animate-fade-in" style="animation-delay: 0.1s" bindtap="onStartFillBlank">
+      <view class="mode-card__icon-wrap">
+        <text class="mode-card__icon">🧩</text>
+      </view>
+      <view class="mode-card__content">
+        <text class="mode-card__title">填空挑战</text>
+        <text class="mode-card__desc">根据例句选出正确的短语</text>
+      </view>
+      <view class="mode-card__action">
+        <text class="mode-card__action-text">开始</text>
+        <text class="mode-card__action-arrow">→</text>
+      </view>
+    </view>
+
+    <!-- 3. 📝 主题测验 -->
+    <view class="mode-card mode-card--theme animate-fade-in" style="animation-delay: 0.15s">
+      <view class="mode-card__header" bindtap="onToggleThemePicker">
+        <view class="mode-card__icon-wrap">
+          <text class="mode-card__icon">📝</text>
+        </view>
+        <view class="mode-card__content">
+          <text class="mode-card__title">主题测验</text>
+          <text class="mode-card__desc">选择感兴趣的主题，针对性练习</text>
+        </view>
+        <view class="mode-card__action">
+          <text class="mode-card__action-arrow {{showThemePicker ? 'mode-card__action-arrow--up' : ''}}">›</text>
+        </view>
+      </view>
+
+      <!-- Theme picker (expandable) -->
+      <view class="theme-picker" wx:if="{{showThemePicker && themes.length > 0}}">
+        <view class="theme-picker__list">
+          <view
+            class="theme-picker__item {{selectedThemes.indexOf(item.id) !== -1 ? 'theme-picker__item--selected' : ''}}"
+            wx:for="{{themes}}"
+            wx:key="id"
+            data-id="{{item.id}}"
+            bindtap="onThemeSelect">
+            <view class="theme-picker__check">
+              <text wx:if="{{selectedThemes.indexOf(item.id) !== -1}}">✓</text>
+            </view>
+            <view class="theme-picker__info">
+              <text class="theme-picker__zh">{{item.theme_zh}}</text>
+              <text class="theme-picker__en">{{item.theme_en}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="theme-picker__footer">
+          <text class="theme-picker__hint" wx:if="{{selectedThemes.length > 0}}">
+            已选 {{selectedThemes.length}} 个主题
+          </text>
+          <button class="btn btn-primary btn-sm theme-picker__btn" bindtap="onStartThemeQuiz">
+            开始测验
+          </button>
+        </view>
+      </view>
+
+      <!-- No themes loaded -->
+      <view class="theme-picker theme-picker--empty" wx:if="{{showThemePicker && themes.length === 0}}">
+        <text class="theme-picker__empty-text">暂无主题数据</text>
+      </view>
+    </view>
+
+    <!-- 4. 🔄 错题回顾 -->
+    <view class="mode-card mode-card--wrong animate-fade-in" style="animation-delay: 0.25s" bindtap="onStartWrongReview">
+      <view class="mode-card__icon-wrap">
+        <text class="mode-card__icon">🔄</text>
+      </view>
+      <view class="mode-card__content">
+        <text class="mode-card__title">错题回顾</text>
+        <text class="mode-card__desc" wx:if="{{wrongCount > 0}}">
+          共 {{wrongCount}} 道错题等待挑战
+        </text>
+        <text class="mode-card__desc" wx:else>
+          暂无错题，继续保持！
+        </text>
+      </view>
+      <view class="mode-card__action" wx:if="{{wrongCount > 0}}">
+        <text class="mode-card__action-text">重新挑战</text>
+        <text class="mode-card__action-arrow">→</text>
+      </view>
+    </view>
+
+    <!-- 5. 📊 测验统计 -->
+    <view class="mode-card mode-card--stats animate-fade-in" style="animation-delay: 0.35s" bindtap="onToggleStats">
+      <view class="mode-card__icon-wrap">
+        <text class="mode-card__icon">📊</text>
+      </view>
+      <view class="mode-card__content">
+        <text class="mode-card__title">测验统计</text>
+        <text class="mode-card__desc">总答题 {{stats.total_answered}} · 正确率 {{stats.accuracy}}%</text>
+      </view>
+      <view class="mode-card__action">
+        <text class="mode-card__action-arrow {{showStatsPanel ? 'mode-card__action-arrow--up' : ''}}">›</text>
+      </view>
+
+      <!-- Stats panel (expandable) -->
+      <view class="stats-panel" wx:if="{{showStatsPanel}}" catchtap="">
+        <view class="stats-panel__grid">
+          <view class="stats-panel__item">
+            <text class="stats-panel__value">{{stats.total_answered}}</text>
+            <text class="stats-panel__label">总答题数</text>
+          </view>
+          <view class="stats-panel__item">
+            <text class="stats-panel__value">{{stats.accuracy}}%</text>
+            <text class="stats-panel__label">正确率</text>
+          </view>
+          <view class="stats-panel__item stats-panel__item--streak">
+            <text class="stats-panel__value">🔥 {{stats.current_streak}}</text>
+            <text class="stats-panel__label">当前连胜</text>
+          </view>
+          <view class="stats-panel__item">
+            <text class="stats-panel__value">🏆 {{stats.max_streak}}</text>
+            <text class="stats-panel__label">最高连胜</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+  </block>
+
+  <!-- Bottom safe area -->
+  <view class="safe-bottom" style="height: 120rpx;"></view>
+</view>

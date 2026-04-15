@@ -1,8 +1,7 @@
 """
-Seed script: import sample data from english_history.json into EasySpeak database.
-Run: cd backend && python3 scripts/seed_data.py
+Seed script: import sample data into EasySpeak database.
+Run: cd backend && source venv/bin/activate && python3 scripts/seed_data.py
 """
-import json
 import os
 import sys
 
@@ -17,16 +16,6 @@ from app.models.word import Word
 
 # Re-create tables
 Base.metadata.create_all(bind=engine)
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
-JSON_PATH = os.path.join(PROJECT_ROOT, "english_history.json")
-
-with open(JSON_PATH, "r", encoding="utf-8") as f:
-    history = json.load(f)
-
-all_phrases = history["phrases_sent"]
-all_words = history["words_sent"]
 
 # Organize data into 6 themed daily contents
 THEMES = [

@@ -43,6 +43,10 @@
   color: #e6edf3;
 }
 
+.phrase-card--evening .phrase-card__meaning {
+  color: #c9d1d9;
+}
+
 .phrase-card--evening .phrase-card__explanation {
   color: #8b949e;
 }
@@ -119,6 +123,13 @@
 /* Collapsed section */
 .phrase-card__collapsed {
   margin-top: 12rpx;
+}
+
+.phrase-card__meaning {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8rpx;
 }
 
 .phrase-card__explanation {

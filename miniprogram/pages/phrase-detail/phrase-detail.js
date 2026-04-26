@@ -11,6 +11,7 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const auth = require('../../utils/auth')
+const navigation = require('../../utils/navigation')
 
 Page({
   data: {
@@ -32,7 +33,6 @@ Page({
     // Theme info from parent content
     themeZh: '',
     dateDisplay: '',
-    timeSlot: 'morning',
 
     // Mastery rating (1-5 stars)
     masteryRating: 0,
@@ -158,23 +158,12 @@ Page({
       var dateStr = storage.formatDate(d)
       var dailyCache = storage.getDailyCache(dateStr)
       if (dailyCache) {
-        // Check morning content
-        var morning = dailyCache.morning
-        if (morning && morning.phrases) {
-          var m = self._findPhraseInList(morning.phrases, phraseId)
-          if (m) {
-            foundPhrase = m
-            foundContent = morning
-            break
-          }
-        }
-        // Check evening content
-        var evening = dailyCache.evening
-        if (evening && evening.phrases) {
-          var e = self._findPhraseInList(evening.phrases, phraseId)
-          if (e) {
-            foundPhrase = e
-            foundContent = evening
+        var content = dailyCache.content || dailyCache
+        if (content && content.phrases) {
+          var found = self._findPhraseInList(content.phrases, phraseId)
+          if (found) {
+            foundPhrase = found
+            foundContent = content
             break
           }
         }
@@ -225,7 +214,6 @@ Page({
       source: rawPhrase.source || '',
       themeZh: contentData.theme_zh || '',
       dateDisplay: this._formatDate(contentData.date || ''),
-      timeSlot: contentData.time_slot || 'morning',
       masteryRating: rawPhrase.mastery_level || rawPhrase.mastery || 0
     })
   },
@@ -301,6 +289,10 @@ Page({
   },
 
   onBack: function () {
-    wx.navigateBack({ delta: 1 })
+    navigation.safeNavigateBack({
+      delta: 1,
+      fallbackUrl: '/pages/library/library',
+      fallbackIsTab: true
+    })
   }
 })

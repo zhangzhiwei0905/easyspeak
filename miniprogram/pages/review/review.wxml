@@ -1,29 +1,23 @@
-<!-- Review Page: Overview + Session modes -->
-
-<!-- Mode 1: Review Overview -->
 <view class="review-page" wx:if="{{mode === 'overview'}}">
-  <!-- Page Header -->
   <view class="review-header">
     <text class="review-header__icon">🧠</text>
     <text class="review-header__title">智能复习</text>
     <text class="review-header__subtitle">基于间隔重复算法的高效复习</text>
   </view>
 
-  <!-- Study Calendar -->
   <view class="review-section">
     <view class="review-section__title">
       <text class="review-section__icon">📅</text>
       <text>复习日历</text>
     </view>
     <calendar
-      studyDates="{{calendarDates}}"
+      calendarData="{{calendarData}}"
       currentMonth="{{currentMonth}}"
       bind:monthchange="onMonthChange"
       bind:daytap="onDayTap"
     />
   </view>
 
-  <!-- Memory Curve Overview -->
   <view class="review-section">
     <view class="review-section__title">
       <text class="review-section__icon">📊</text>
@@ -31,7 +25,6 @@
     </view>
 
     <view class="memory-stats">
-      <!-- Forgetting Soon -->
       <view class="memory-stat memory-stat--forgetting">
         <view class="memory-stat__left">
           <view class="memory-stat__dot memory-stat__dot--red"></view>
@@ -41,7 +34,6 @@
         <text class="memory-stat__hint">1天内到期</text>
       </view>
 
-      <!-- Consolidating -->
       <view class="memory-stat memory-stat--consolidating">
         <view class="memory-stat__left">
           <view class="memory-stat__dot memory-stat__dot--yellow"></view>
@@ -51,17 +43,15 @@
         <text class="memory-stat__hint">3天内到期</text>
       </view>
 
-      <!-- Mastered -->
       <view class="memory-stat memory-stat--mastered">
         <view class="memory-stat__left">
           <view class="memory-stat__dot memory-stat__dot--green"></view>
           <text class="memory-stat__label">已掌握</text>
         </view>
         <text class="memory-stat__count">{{summary.mastered_count || 0}}</text>
-        <text class="memory-stat__hint">7天+无到期</text>
+        <text class="memory-stat__hint">3天后复习</text>
       </view>
 
-      <!-- New Content -->
       <view class="memory-stat memory-stat--new">
         <view class="memory-stat__left">
           <view class="memory-stat__dot memory-stat__dot--gray"></view>
@@ -73,37 +63,33 @@
     </view>
   </view>
 
-  <!-- Start Review Button -->
   <view class="review-action">
     <button
-      class="review-btn {{dueCount > 0 ? 'review-btn--active' : 'review-btn--disabled'}}"
+      class="review-btn {{loading ? 'review-btn--disabled' : 'review-btn--active'}}"
       bindtap="startReview"
-      disabled="{{dueCount === 0 && loadingDue === false}}"
+      disabled="{{loading}}"
     >
       <text class="review-btn__icon">🔄</text>
       <text class="review-btn__text">开始复习</text>
-      <text class="review-btn__count" wx:if="{{dueCount > 0}}">{{dueCount}}项待复习</text>
-      <text class="review-btn__count" wx:elif="{{loadingDue}}">加载中...</text>
-      <text class="review-btn__count" wx:else>暂无待复习</text>
+      <text class="review-btn__count" wx:if="{{loading}}">加载中...</text>
+      <text class="review-btn__count" wx:elif="{{overviewLoadFailed}}">点击重试</text>
+      <text class="review-btn__count" wx:elif="{{dueCount > 0}}">{{dueCount}}项待复习</text>
+      <text class="review-btn__count" wx:else>点击检查待复习</text>
     </button>
   </view>
 
-  <!-- Empty state -->
-  <view class="review-empty" wx:if="{{!loading && dueCount === 0 && !summary}}">
+  <view class="review-empty" wx:if="{{!loading && dueCount === 0}}">
     <text class="review-empty__text">😊 今日暂无待复习内容</text>
     <text class="review-empty__hint">快去首页学习新内容吧！</text>
   </view>
 
-  <!-- Loading state -->
   <view class="review-loading" wx:if="{{loading}}">
     <view class="review-loading__spinner"></view>
     <text class="review-loading__text">加载中...</text>
   </view>
 </view>
 
-<!-- Mode 2: Review Session -->
 <view class="review-session" wx:if="{{mode === 'session'}}">
-  <!-- Session Header with Progress -->
   <view class="session-header">
     <view class="session-header__top">
       <view class="session-header__back" bindtap="exitSession">
@@ -123,17 +109,15 @@
     />
   </view>
 
-  <!-- Flip Card -->
   <view class="session-card-area">
     <view class="flip-card" bindtap="flipCard">
       <view class="flip-card__inner {{isFlipped ? 'flip-card__inner--flipped' : ''}}">
-        <!-- Front: phrase or word -->
         <view class="flip-card__face flip-card__face--front">
           <view class="flip-card__front-content">
-            <view class="flip-card__type-badge" wx:if="{{currentItem.type === 'phrase'}}">
+            <view class="flip-card__type-badge" wx:if="{{currentItem.item_type === 'phrase'}}">
               <text>💬 短语</text>
             </view>
-            <view class="flip-card__type-badge flip-card__type-badge--word" wx:if="{{currentItem.type === 'word'}}">
+            <view class="flip-card__type-badge flip-card__type-badge--word" wx:if="{{currentItem.item_type === 'word'}}">
               <text>📖 单词</text>
             </view>
             <text class="flip-card__text">{{currentItem.text}}</text>
@@ -142,7 +126,6 @@
           </view>
         </view>
 
-        <!-- Back: meaning + examples -->
         <view class="flip-card__face flip-card__face--back">
           <scroll-view class="flip-card__back-scroll" scroll-y="true">
             <view class="flip-card__back-content">
@@ -153,16 +136,14 @@
 
               <view class="flip-card__meaning-block">
                 <text class="flip-card__meaning-label">释义</text>
-                <text class="flip-card__meaning">{{currentItem.meaning}}</text>
+                <text class="flip-card__meaning">{{currentItem.meaning || currentItem.explanation || '暂无释义'}}</text>
               </view>
 
-              <!-- Explanation for phrases -->
               <view class="flip-card__explanation-block" wx:if="{{currentItem.explanation}}">
                 <text class="flip-card__explanation-label">📖 解读</text>
                 <text class="flip-card__explanation">{{currentItem.explanation}}</text>
               </view>
 
-              <!-- Examples -->
               <view class="flip-card__examples-block" wx:if="{{currentItem.examples && currentItem.examples.length > 0}}">
                 <text class="flip-card__examples-label">📝 例句</text>
                 <view class="flip-card__example" wx:for="{{currentItem.examples}}" wx:key="index">
@@ -170,13 +151,6 @@
                 </view>
               </view>
 
-              <!-- Single example string -->
-              <view class="flip-card__example-block" wx:if="{{currentItem.example && (!currentItem.examples || currentItem.examples.length === 0)}}">
-                <text class="flip-card__example-label">📝 例句</text>
-                <text class="flip-card__example-text">{{currentItem.example}}</text>
-              </view>
-
-              <!-- Source -->
               <view class="flip-card__source-block" wx:if="{{currentItem.source}}">
                 <text class="flip-card__source">🎬 来源: {{currentItem.source}}</text>
               </view>
@@ -189,61 +163,38 @@
     </view>
   </view>
 
-  <!-- Mastery Buttons (visible after flip) -->
   <view class="mastery-area {{isFlipped ? 'mastery-area--visible' : ''}}">
     <text class="mastery-area__label">你的掌握程度：</text>
     <view class="mastery-buttons">
-      <view
-        class="mastery-btn mastery-btn--0"
-        data-mastery="{{0}}"
-        bindtap="selectMastery"
-      >
+      <view class="mastery-btn mastery-btn--0" data-mastery="{{0}}" bindtap="selectMastery">
         <text class="mastery-btn__emoji">😫</text>
         <text class="mastery-btn__label">完全忘了</text>
       </view>
-      <view
-        class="mastery-btn mastery-btn--1"
-        data-mastery="{{1}}"
-        bindtap="selectMastery"
-      >
+      <view class="mastery-btn mastery-btn--1" data-mastery="{{1}}" bindtap="selectMastery">
         <text class="mastery-btn__emoji">😕</text>
         <text class="mastery-btn__label">有点印象</text>
       </view>
-      <view
-        class="mastery-btn mastery-btn--2"
-        data-mastery="{{2}}"
-        bindtap="selectMastery"
-      >
+      <view class="mastery-btn mastery-btn--2" data-mastery="{{2}}" bindtap="selectMastery">
         <text class="mastery-btn__emoji">🤔</text>
         <text class="mastery-btn__label">想起来了</text>
       </view>
-      <view
-        class="mastery-btn mastery-btn--3"
-        data-mastery="{{3}}"
-        bindtap="selectMastery"
-      >
+      <view class="mastery-btn mastery-btn--3" data-mastery="{{3}}" bindtap="selectMastery">
         <text class="mastery-btn__emoji">😊</text>
         <text class="mastery-btn__label">比较熟悉</text>
       </view>
-      <view
-        class="mastery-btn mastery-btn--4"
-        data-mastery="{{4}}"
-        bindtap="selectMastery"
-      >
+      <view class="mastery-btn mastery-btn--4" data-mastery="{{4}}" bindtap="selectMastery">
         <text class="mastery-btn__emoji">🎯</text>
         <text class="mastery-btn__label">完全掌握</text>
       </view>
     </view>
   </view>
 
-  <!-- Submitting state -->
   <view class="session-submitting" wx:if="{{submitting}}">
     <view class="review-loading__spinner"></view>
     <text>提交中...</text>
   </view>
 </view>
 
-<!-- Mode 3: Review Summary -->
 <view class="review-summary" wx:if="{{mode === 'summary'}}">
   <view class="summary-card">
     <view class="summary-card__icon">🎉</view>
@@ -266,7 +217,6 @@
       </view>
     </view>
 
-    <!-- Mastery Distribution -->
     <view class="summary-distribution">
       <text class="summary-distribution__title">掌握度分布</text>
       <view class="summary-distribution__bars">
@@ -285,8 +235,94 @@
     <button class="summary-btn summary-btn--again" bindtap="reviewAgain">
       <text>🔄 再来一轮</text>
     </button>
+    <button class="summary-btn summary-btn--quiz" bindtap="goToQuiz">
+      <text>🎯 去测一测</text>
+    </button>
     <button class="summary-btn summary-btn--back" bindtap="backToOverview">
       <text>🏠 返回复习首页</text>
     </button>
+  </view>
+</view>
+
+<!-- Day detail popup -->
+<view class="day-detail-mask {{showDayDetail ? 'day-detail-mask--show' : ''}}" bindtap="closeDayDetail">
+  <view class="day-detail-popup {{showDayDetail ? 'day-detail-popup--show' : ''}}" catchtap="">
+    <view class="day-detail__header">
+      <text class="day-detail__date">{{dayDetail.dateStr}}</text>
+      <view class="day-detail__close" bindtap="closeDayDetail">
+        <text>✕</text>
+      </view>
+    </view>
+    <view class="day-detail__body" wx:if="{{dayDetail.hasReview || dayDetail.hasContent}}">
+      <view class="day-detail__section day-detail__section--review" wx:if="{{dayDetail.hasReview}}">
+        <text class="day-detail__section-title">当日复习</text>
+        <view class="day-detail__stats day-detail__stats--review">
+          <view class="day-detail__stat">
+            <text class="day-detail__stat-icon">🔄</text>
+            <text class="day-detail__stat-value">{{dayDetail.reviewedCount}}</text>
+            <text class="day-detail__stat-label">项复习</text>
+          </view>
+          <view class="day-detail__stat">
+            <text class="day-detail__stat-icon">💬</text>
+            <text class="day-detail__stat-value">{{dayDetail.reviewPhraseCount}}</text>
+            <text class="day-detail__stat-label">短语</text>
+          </view>
+          <view class="day-detail__stat">
+            <text class="day-detail__stat-icon">📖</text>
+            <text class="day-detail__stat-value">{{dayDetail.reviewWordCount}}</text>
+            <text class="day-detail__stat-label">单词</text>
+          </view>
+        </view>
+        <view class="day-detail__metrics">
+          <view class="day-detail__metric">
+            <text class="day-detail__metric-label">平均掌握度</text>
+            <text class="day-detail__metric-value">{{dayDetail.avgMastery}}/4</text>
+          </view>
+        </view>
+        <view class="day-detail__distribution">
+          <view class="day-detail__dist-item">
+            <text class="day-detail__dist-label">完全忘了</text>
+            <text class="day-detail__dist-value">{{dayDetail.forgotCount}}</text>
+          </view>
+          <view class="day-detail__dist-item">
+            <text class="day-detail__dist-label">有点印象</text>
+            <text class="day-detail__dist-value">{{dayDetail.fuzzyCount}}</text>
+          </view>
+          <view class="day-detail__dist-item">
+            <text class="day-detail__dist-label">想起来了/熟悉</text>
+            <text class="day-detail__dist-value">{{dayDetail.rememberedCount}}</text>
+          </view>
+          <view class="day-detail__dist-item">
+            <text class="day-detail__dist-label">完全掌握</text>
+            <text class="day-detail__dist-value">{{dayDetail.solidCount}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="day-detail__section" wx:if="{{dayDetail.hasContent}}">
+        <text class="day-detail__section-title">当日新内容</text>
+        <text class="day-detail__theme">{{dayDetail.themeZh}}</text>
+        <view class="day-detail__stats">
+          <view class="day-detail__stat">
+            <text class="day-detail__stat-icon">💬</text>
+            <text class="day-detail__stat-value">{{dayDetail.phraseCount}}</text>
+            <text class="day-detail__stat-label">个短语</text>
+          </view>
+          <view class="day-detail__stat">
+            <text class="day-detail__stat-icon">📖</text>
+            <text class="day-detail__stat-value">{{dayDetail.wordCount}}</text>
+            <text class="day-detail__stat-label">个单词</text>
+          </view>
+          <view class="day-detail__stat" wx:if="{{dayDetail.firstPassRate !== null && dayDetail.firstPassRate !== undefined}}">
+            <text class="day-detail__stat-icon">🎯</text>
+            <text class="day-detail__stat-value">{{dayDetail.firstPassRate}}%</text>
+            <text class="day-detail__stat-label">一次通过</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="day-detail__empty" wx:else>
+      <text class="day-detail__empty-text">该日暂无学习记录</text>
+    </view>
   </view>
 </view>

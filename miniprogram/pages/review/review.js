@@ -1,37 +1,41 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
+const auth = require('../../utils/auth')
 
 Page({
   data: {
-    // Mode: 'overview' | 'session' | 'summary'
     mode: 'overview',
 
-    // Overview data
     loading: false,
-    loadingDue: false,
-    calendarDates: [],
     currentMonth: '',
-    summary: null,
+    calendarData: [],
+    summary: {
+      forgetting_count: 0,
+      consolidating_count: 0,
+      mastered_count: 0,
+      new_count: 0
+    },
     dueCount: 0,
+    overviewLoadFailed: false,
 
-    // Session data
     dueItems: [],
     currentIndex: 0,
     currentItem: {},
     isFlipped: false,
     submitting: false,
 
-    // Summary data
     summaryResult: {
       reviewedCount: 0,
       avgMastery: '0.0',
       masteryLabel: '',
       masteryLevel: '',
       distribution: []
-    }
+    },
+
+    showDayDetail: false,
+    dayDetail: {}
   },
 
-  // Track mastery ratings during session
   _masteryRatings: [],
 
   onLoad() {
@@ -39,23 +43,21 @@ Page({
   },
 
   onShow() {
-    // Refresh data when page becomes visible (e.g., coming back from another tab)
     if (this.data.mode === 'overview') {
       this._loadOverviewData()
     }
   },
 
   onPullDownRefresh() {
-    this._loadOverviewData().then(function() {
-      wx.stopPullDownRefresh()
-    }).catch(function() {
-      wx.stopPullDownRefresh()
-    })
+    this._loadOverviewData()
+      .then(function () {
+        wx.stopPullDownRefresh()
+      })
+      .catch(function () {
+        wx.stopPullDownRefresh()
+      })
   },
 
-  /**
-   * Initialize page — set current month and load data
-   */
   _initPage() {
     var now = new Date()
     var y = now.getFullYear()
@@ -66,144 +68,135 @@ Page({
     this._loadOverviewData()
   },
 
-  /**
-   * Load all overview data: calendar + summary + due count
-   */
   _loadOverviewData() {
     var self = this
-    self.setData({ loading: true })
-
-    // Load calendar dates (from local cache + API)
-    var calendarPromise = self._loadCalendarDates()
-
-    // Load memory curve summary
-    var summaryPromise = self._loadSummary()
-
-    // Load due items count
-    var duePromise = self._loadDueCount()
-
-    return Promise.all([calendarPromise, summaryPromise, duePromise])
-      .then(function() {
-        self.setData({ loading: false })
-      })
-      .catch(function(err) {
-        console.error('[Review] Failed to load overview:', err)
-        self.setData({ loading: false })
-      })
-  },
-
-  /**
-   * Load study calendar dates
-   * Uses local cache first, then refreshes from API
-   */
-  _loadCalendarDates() {
-    var self = this
-
-    // Try local cache first
-    var cachedDates = storage.getStudyCalendar()
-    if (cachedDates && cachedDates.length > 0) {
-      self.setData({ calendarDates: cachedDates })
-    }
-
-    // Also fetch from API for the current month
     var parts = self.data.currentMonth.split('-')
     var params = {
-      year: parseInt(parts[0]),
-      month: parseInt(parts[1])
+      year: parseInt(parts[0], 10),
+      month: parseInt(parts[1], 10)
     }
 
-    return api.get('/progress/calendar', params)
-      .then(function(res) {
-        var dates = res.dates || res.study_dates || []
-        if (dates.length > 0) {
-          self.setData({ calendarDates: dates })
+    self.setData({
+      loading: true,
+      overviewLoadFailed: false
+    })
+
+    return auth.ensureLogin()
+      .then(function (loggedIn) {
+        if (!loggedIn) {
+          self.setData({
+            loading: false,
+            overviewLoadFailed: true
+          })
+          return Promise.reject(new Error('login required'))
         }
-      })
-      .catch(function(err) {
-        console.warn('[Review] Failed to load calendar:', err)
-        // Use local cache if available, silently fail
-      })
-  },
 
-  /**
-   * Load memory curve summary stats
-   */
-  _loadSummary() {
-    var self = this
+        return api.get('/review/overview', params)
+      })
+      .then(function (res) {
+        var rawCalendar = res.calendar_dates || []
+        // Handle both formats: old API returns strings, new API returns objects
+        var calendarData = []
+        var dateStrings = []
+        for (var i = 0; i < rawCalendar.length; i++) {
+          var item = rawCalendar[i]
+          if (typeof item === 'string') {
+            calendarData.push({ date: item, has_content: false, learned: false, reviewed: 0 })
+            dateStrings.push(item)
+          } else {
+            calendarData.push(item)
+            dateStrings.push(item.date)
+          }
+        }
 
-    return api.get('/progress/summary')
-      .then(function(res) {
         self.setData({
-          summary: {
-            forgetting_count: res.forgetting_count || res.due_soon || 0,
-            consolidating_count: res.consolidating_count || res.consolidating || 0,
-            mastered_count: res.mastered_count || res.mastered || 0,
-            new_count: res.new_count || res.new_items || 0
+          loading: false,
+          overviewLoadFailed: false,
+          calendarData: calendarData,
+          dueCount: res.due_count || 0,
+          summary: res.memory_summary || {
+            forgetting_count: 0,
+            consolidating_count: 0,
+            mastered_count: 0,
+            new_count: 0
           }
         })
-      })
-      .catch(function(err) {
-        console.warn('[Review] Failed to load summary:', err)
-      })
-  },
 
-  /**
-   * Load due items count (just count, not full items)
-   */
-  _loadDueCount() {
-    var self = this
-    self.setData({ loadingDue: true })
-
-    return api.get('/review/due')
-      .then(function(res) {
-        var items = res.items || res.due_items || []
+        if (dateStrings.length > 0) {
+          storage.set(storage.KEYS.STUDY_CALENDAR, dateStrings)
+        }
+      })
+      .catch(function (err) {
+        console.error('[Review] Failed to load overview:', err)
         self.setData({
-          dueCount: items.length,
-          loadingDue: false
+          loading: false,
+          overviewLoadFailed: true
         })
       })
-      .catch(function(err) {
-        console.warn('[Review] Failed to load due count:', err)
-        self.setData({ loadingDue: false })
-      })
   },
 
-  /**
-   * Calendar month change handler
-   */
   onMonthChange(e) {
     var year = e.detail.year
     var month = e.detail.month
     var m = String(month).padStart(2, '0')
     this.setData({ currentMonth: year + '-' + m })
-    this._loadCalendarDates()
+    this._loadOverviewData()
   },
 
-  /**
-   * Calendar day tap handler
-   */
   onDayTap(e) {
-    // Could navigate to that day's content in the future
-    var dateStr = e.detail.dateStr
-    console.log('[Review] Tapped date:', dateStr)
+    var dayData = e.detail.dayData
+    if (!dayData || !dayData.dateStr) return
+    if (dayData.status === 'empty') return
+    if (dayData.status === 'none' && !dayData.reviewed) return
+
+    this.setData({
+      showDayDetail: true,
+      dayDetail: {
+        dateStr: dayData.dateStr,
+        hasReview: (dayData.reviewed || 0) > 0,
+        hasContent: !!(dayData.themeZh || dayData.phraseCount || dayData.wordCount),
+        themeZh: dayData.themeZh || '',
+        phraseCount: dayData.phraseCount || 0,
+        wordCount: dayData.wordCount || 0,
+        firstPassRate: dayData.firstPassRate,
+        avgMastery: dayData.avgMastery || 0,
+        reviewed: dayData.reviewed || 0,
+        reviewedCount: dayData.reviewedCount || dayData.reviewed || 0,
+        reviewPhraseCount: dayData.reviewPhraseCount || 0,
+        reviewWordCount: dayData.reviewWordCount || 0,
+        forgotCount: dayData.forgotCount || 0,
+        fuzzyCount: dayData.fuzzyCount || 0,
+        rememberedCount: dayData.rememberedCount || 0,
+        solidCount: dayData.solidCount || 0,
+        status: dayData.status
+      }
+    })
   },
 
-  /**
-   * Start review session — fetch full due items and enter session mode
-   */
+  closeDayDetail() {
+    this.setData({ showDayDetail: false })
+  },
+
   startReview() {
     var self = this
-    if (self.data.dueCount === 0) return
+    if (self.data.loading) return
 
     wx.showLoading({ title: '加载复习内容...' })
-
-    api.get('/review/due')
-      .then(function(res) {
+    auth.ensureLogin()
+      .then(function (loggedIn) {
+        if (!loggedIn) {
+          wx.hideLoading()
+          return Promise.reject(new Error('login required'))
+        }
+        return api.get('/review/due')
+      })
+      .then(function (res) {
         wx.hideLoading()
-        var items = res.items || res.due_items || []
+        var items = res.items || []
 
         if (items.length === 0) {
           wx.showToast({ title: '暂无待复习内容', icon: 'none' })
+          self._loadOverviewData()
           return
         }
 
@@ -217,82 +210,61 @@ Page({
           submitting: false
         })
       })
-      .catch(function(err) {
+      .catch(function (err) {
         wx.hideLoading()
         console.error('[Review] Failed to load due items:', err)
         wx.showToast({ title: '加载失败，请重试', icon: 'none' })
       })
   },
 
-  /**
-   * Flip the current card
-   */
   flipCard() {
     this.setData({
       isFlipped: !this.data.isFlipped
     })
   },
 
-  /**
-   * Select mastery level and advance to next card
-   */
   selectMastery(e) {
     var self = this
     if (self.data.submitting) return
 
-    var mastery = parseInt(e.currentTarget.dataset.mastery)
+    var mastery = parseInt(e.currentTarget.dataset.mastery, 10)
     var currentItem = self.data.currentItem
 
     self.setData({ submitting: true })
 
-    // Submit mastery to API
-    var postData = {
+    api.post('/review/complete', {
       item_id: currentItem.id,
-      item_type: currentItem.type || currentItem.item_type || 'phrase',
+      item_type: currentItem.item_type,
       mastery: mastery
-    }
-    if (currentItem.word_id) {
-      postData.word_id = currentItem.word_id
-    }
-    if (currentItem.phrase_id) {
-      postData.phrase_id = currentItem.phrase_id
-    }
-
-    api.post('/review/complete', postData)
-      .then(function(res) {
-        // Record the mastery rating locally
+    })
+      .then(function () {
         self._masteryRatings.push({
           text: currentItem.text,
           mastery: mastery
         })
 
-        // Record study day
         storage.recordStudyDay()
 
-        // Move to next card or show summary
         var nextIndex = self.data.currentIndex + 1
         if (nextIndex >= self.data.dueItems.length) {
-          // Session complete — show summary
           self._showSummary()
-        } else {
-          self.setData({
-            currentIndex: nextIndex,
-            currentItem: self.data.dueItems[nextIndex],
-            isFlipped: false,
-            submitting: false
-          })
+          return
         }
+
+        self.setData({
+          currentIndex: nextIndex,
+          currentItem: self.data.dueItems[nextIndex],
+          isFlipped: false,
+          submitting: false
+        })
       })
-      .catch(function(err) {
+      .catch(function (err) {
         console.error('[Review] Failed to submit mastery:', err)
         self.setData({ submitting: false })
         wx.showToast({ title: '提交失败，请重试', icon: 'none' })
       })
   },
 
-  /**
-   * Show review summary after session completes
-   */
   _showSummary() {
     var ratings = this._masteryRatings
     var totalCount = ratings.length
@@ -300,6 +272,7 @@ Page({
     if (totalCount === 0) {
       this.setData({
         mode: 'summary',
+        submitting: false,
         summaryResult: {
           reviewedCount: 0,
           avgMastery: '0.0',
@@ -311,17 +284,14 @@ Page({
       return
     }
 
-    // Calculate average mastery
     var sum = 0
     for (var i = 0; i < ratings.length; i++) {
       sum += ratings[i].mastery
     }
     var avg = sum / totalCount
-    var avgStr = avg.toFixed(1)
 
-    // Determine overall mastery label
-    var masteryLabel = ''
-    var masteryLevel = ''
+    var masteryLabel = '需要复习'
+    var masteryLevel = 'poor'
     if (avg >= 3.5) {
       masteryLabel = '太棒了！'
       masteryLevel = 'excellent'
@@ -331,13 +301,9 @@ Page({
     } else if (avg >= 1.5) {
       masteryLabel = '继续加油'
       masteryLevel = 'fair'
-    } else {
-      masteryLabel = '需要复习'
-      masteryLevel = 'poor'
     }
 
-    // Calculate distribution
-    var distLabels = [
+    var labels = [
       { level: 0, emoji: '😫', label: '完全忘了' },
       { level: 1, emoji: '😕', label: '有点印象' },
       { level: 2, emoji: '🤔', label: '想起来了' },
@@ -345,29 +311,25 @@ Page({
       { level: 4, emoji: '🎯', label: '完全掌握' }
     ]
 
-    var distribution = []
-    for (var j = 0; j < distLabels.length; j++) {
-      var count = 0
-      for (var k = 0; k < ratings.length; k++) {
-        if (ratings[k].mastery === distLabels[j].level) {
-          count++
-        }
-      }
-      distribution.push({
-        level: distLabels[j].level,
-        emoji: distLabels[j].emoji,
-        label: distLabels[j].label,
+    var distribution = labels.map(function (entry) {
+      var count = ratings.filter(function (item) {
+        return item.mastery === entry.level
+      }).length
+      return {
+        level: entry.level,
+        emoji: entry.emoji,
+        label: entry.label,
         count: count,
         pct: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
-      })
-    }
+      }
+    })
 
     this.setData({
       mode: 'summary',
       submitting: false,
       summaryResult: {
         reviewedCount: totalCount,
-        avgMastery: avgStr,
+        avgMastery: avg.toFixed(1),
         masteryLabel: masteryLabel,
         masteryLevel: masteryLevel,
         distribution: distribution
@@ -375,9 +337,6 @@ Page({
     })
   },
 
-  /**
-   * Exit review session early — confirm with user
-   */
   exitSession() {
     var self = this
     var reviewed = self._masteryRatings.length
@@ -389,28 +348,23 @@ Page({
         content: '已完成 ' + reviewed + '/' + total + ' 项，确定退出吗？',
         confirmText: '退出',
         cancelText: '继续复习',
-        success: function(res) {
+        success: function (res) {
           if (res.confirm) {
             self._showSummary()
           }
         }
       })
-    } else {
-      self.backToOverview()
+      return
     }
+
+    self.backToOverview()
   },
 
-  /**
-   * Review again — reload due items and start new session
-   */
   reviewAgain() {
     this.setData({ mode: 'overview' })
     this.startReview()
   },
 
-  /**
-   * Back to overview mode
-   */
   backToOverview() {
     this._masteryRatings = []
     this.setData({
@@ -420,21 +374,24 @@ Page({
       isFlipped: false,
       submitting: false
     })
-    // Refresh overview data
     this._loadOverviewData()
   },
 
-  /**
-   * Share review result
-   */
+  goToQuiz() {
+    wx.switchTab({
+      url: '/pages/quiz/quiz'
+    })
+  },
+
   onShareAppMessage() {
     if (this.data.mode === 'summary') {
       var result = this.data.summaryResult
       return {
-        title: '我刚刚复习了' + result.reviewedCount + '个短语，掌握度' + result.avgMastery + '！',
+        title: '我刚刚复习了' + result.reviewedCount + '项内容，掌握度' + result.avgMastery + '！',
         path: '/pages/review/review'
       }
     }
+
     return {
       title: 'EasySpeak · 智能复习',
       path: '/pages/review/review'

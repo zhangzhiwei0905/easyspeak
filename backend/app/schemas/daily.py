@@ -12,6 +12,7 @@ class PhraseExample(BaseModel):
 
 class PhraseBase(BaseModel):
     phrase: str
+    meaning: Optional[str] = None
     explanation: str
     examples: list[PhraseExample] = []
     source: Optional[str] = None
@@ -67,11 +68,13 @@ class WordOut(WordBase):
 # --- Daily Content ---
 class DailyContentBase(BaseModel):
     date: date
-    time_slot: str
     theme_zh: str
     theme_en: str
     introduction: Optional[str] = None
     practice_tips: Optional[str] = None
+    category: str
+    category_zh: str
+    status: str = "scheduled"
 
 
 class DailyContentOut(DailyContentBase):
@@ -85,9 +88,10 @@ class DailyContentOut(DailyContentBase):
 class DailyContentListItem(BaseModel):
     id: int
     date: date
-    time_slot: str
     theme_zh: str
     theme_en: str
+    category: str
+    category_zh: str
     phrase_count: int = 0
     word_count: int = 0
 
@@ -97,6 +101,7 @@ class DailyContentListItem(BaseModel):
 # --- Admin Import ---
 class PhraseImport(BaseModel):
     phrase: str
+    meaning: Optional[str] = None
     explanation: str
     examples: list[PhraseExample] = []
     source: Optional[str] = None
@@ -112,13 +117,39 @@ class WordImport(BaseModel):
 
 class ContentImport(BaseModel):
     date: date
-    time_slot: str
     theme_zh: str
     theme_en: str
+    category: str
+    category_zh: str
     introduction: Optional[str] = None
     practice_tips: Optional[str] = None
+    status: str = "scheduled"
     phrases: list[PhraseImport] = []
     words: list[WordImport] = []
+
+
+class ContentImportBatch(BaseModel):
+    batch_id: Optional[str] = None
+    mode: str = "upsert"
+    items: list[ContentImport]
+
+
+# --- Today response (frontend expected format) ---
+class ProgressInfo(BaseModel):
+    phrases_learned: int = 0
+    phrases_total: int = 0
+    words_learned: int = 0
+    words_total: int = 0
+
+
+class ReviewInfo(BaseModel):
+    due_count: int = 0
+
+
+class TodayResponse(BaseModel):
+    content: Optional[DailyContentOut] = None
+    progress: ProgressInfo = ProgressInfo()
+    review: ReviewInfo = ReviewInfo()
 
 
 # --- Paginated response ---
@@ -128,3 +159,14 @@ class PaginatedResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+# --- Calendar response ---
+class CalendarItem(BaseModel):
+    date: date
+    theme_zh: str
+    has_content: bool = True
+
+class CalendarResponse(BaseModel):
+    year: int
+    month: int
+    items: list[CalendarItem]

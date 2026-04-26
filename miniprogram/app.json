@@ -11,6 +11,7 @@
     "pages/search/search",
     "pages/quiz-play/quiz-play",
     "pages/quiz-result/quiz-result",
+    "pages/learn-session/learn-session",
     "pages/settings/settings"
   ],
   "window": {

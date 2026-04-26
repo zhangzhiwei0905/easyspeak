@@ -1,24 +1,131 @@
 <!-- EasySpeak Library Page (内容库) -->
 <view class="page library-page">
 
-  <!-- ========== Search Bar ========== -->
-  <view class="search-bar" bindtap="onSearchFocus">
-    <view class="search-bar__inner">
-      <text class="search-bar__icon">🔍</text>
-      <text class="search-bar__placeholder">{{searchPlaceholder}}</text>
+  <!-- ========== Search Area ========== -->
+  <view class="search-area">
+    <view class="search-bar {{(searchActive || searchKeyword) ? 'search-bar--active' : ''}}">
+      <view class="search-bar__inner">
+        <text class="search-bar__icon">🔍</text>
+        <input class="search-bar__input"
+               placeholder="搜索短语/单词/主题..."
+               placeholder-class="search-bar__placeholder"
+               value="{{searchKeyword}}"
+               focus="{{searchFocused}}"
+               bindfocus="onSearchFocus"
+               bindblur="onSearchBlur"
+               bindinput="onSearchInput"
+               bindconfirm="onSearchConfirm"
+               confirm-type="search" />
+        <text class="search-bar__clear" wx:if="{{searchKeyword}}" catchtap="onSearchClear">✕</text>
+      </view>
+      <text class="search-bar__cancel" wx:if="{{searchActive || searchKeyword}}" catchtap="onSearchCancel">取消</text>
     </view>
+
+    <!-- Search Overlay: history + results -->
+    <block wx:if="{{searchActive || searchKeyword}}">
+      <!-- History Panel (when focused but no keyword) -->
+      <view class="search-panel" wx:if="{{searchActive && !searchKeyword && searchHistory.length > 0}}">
+        <view class="search-panel__header">
+          <text class="search-panel__title">搜索历史</text>
+          <text class="search-panel__clear" catchtap="onClearHistory">清空</text>
+        </view>
+        <view class="search-panel__tags">
+          <view class="search-panel__tag"
+                wx:for="{{searchHistory}}"
+                wx:key="index"
+                data-keyword="{{item}}"
+                catchtap="onHistoryTap">
+            <text>{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Search Results (when keyword exists) -->
+      <view class="search-results" wx:if="{{searchKeyword && searchDone}}">
+        <view class="search-results__empty" wx:if="{{searchThemes.length === 0 && searchPhrases.length === 0 && searchWords.length === 0}}">
+          <text class="search-results__empty-text">没有找到 "{{searchKeyword}}" 相关的内容</text>
+        </view>
+
+        <!-- Theme Results -->
+        <view class="search-results__group" wx:if="{{searchThemes.length > 0}}">
+          <text class="search-results__group-title">🏷️ 相关主题</text>
+          <view class="search-results__item"
+                wx:for="{{searchThemes}}"
+                wx:key="id"
+                data-id="{{item.contentId}}"
+                catchtap="onSearchResultTap">
+            <view class="search-results__item-main">
+              <text class="search-results__item-text">{{item.themeZh}}</text>
+              <text class="search-results__item-meaning" wx:if="{{item.themeEn}}">{{item.themeEn}}</text>
+            </view>
+            <view class="search-results__item-meta">
+              <text>{{item.date}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Phrase Results -->
+        <view class="search-results__group" wx:if="{{searchPhrases.length > 0}}">
+          <text class="search-results__group-title">💬 相关短语</text>
+          <view class="search-results__item"
+                wx:for="{{searchPhrases}}"
+                wx:key="id"
+                data-id="{{item.contentId}}"
+                data-target-id="{{item.id}}"
+                data-type="phrase"
+                catchtap="onSearchResultTap">
+            <view class="search-results__item-main">
+              <text class="search-results__item-text">{{item.phrase}}</text>
+              <text class="search-results__item-meaning" wx:if="{{item.meaning}}">{{item.meaning}}</text>
+            </view>
+            <view class="search-results__item-meta">
+              <text>{{item.theme}} · {{item.date}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Word Results -->
+        <view class="search-results__group" wx:if="{{searchWords.length > 0}}">
+          <text class="search-results__group-title">📚 相关单词</text>
+          <view class="search-results__item"
+                wx:for="{{searchWords}}"
+                wx:key="id"
+                data-id="{{item.contentId}}"
+                data-target-id="{{item.id}}"
+                data-type="word"
+                catchtap="onSearchResultTap">
+            <view class="search-results__item-main">
+              <text class="search-results__item-text">{{item.word}}</text>
+              <text class="search-results__item-meaning" wx:if="{{item.meaning}}">{{item.meaning}}</text>
+            </view>
+            <view class="search-results__item-meta">
+              <text>{{item.theme}} · {{item.date}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Searching... -->
+      <view class="search-results" wx:if="{{searchKeyword && !searchDone}}">
+        <view class="search-results__loading">
+          <view class="load-more__spinner"></view>
+          <text class="search-results__loading-text">搜索中...</text>
+        </view>
+      </view>
+    </block>
   </view>
 
-  <!-- ========== Filter Tabs ========== -->
-  <view class="filter-tabs">
-    <view class="filter-tabs__item {{activeFilter === item.key ? 'filter-tabs__item--active' : ''}}"
-          wx:for="{{filterTabs}}"
-          wx:key="key"
-          data-filter="{{item.key}}"
-          bindtap="onFilterChange">
-      <text class="filter-tabs__text">{{item.label}}</text>
+  <scroll-view class="category-filter" scroll-x="true" show-scrollbar="false">
+    <view class="category-filter__inner">
+      <view class="category-filter__chip {{selectedCategory === item.key ? 'category-filter__chip--active' : ''}}"
+            wx:for="{{categoryFilters}}"
+            wx:key="key"
+            data-category="{{item.key}}"
+            bindtap="onCategoryTap">
+        <text>{{item.label}}</text>
+      </view>
     </view>
-  </view>
+  </scroll-view>
 
   <!-- ========== Loading Skeleton ========== -->
   <view class="skeleton" wx:if="{{loading}}">
@@ -46,7 +153,7 @@
   </view>
 
   <!-- ========== Content List ========== -->
-  <block wx:if="{{!loading && !error && !isEmpty}}">
+  <block wx:if="{{!loading && !error && !isEmpty && !searchActive && !searchKeyword}}">
 
     <!-- Date Groups -->
     <view class="date-group" wx:for="{{dateGroups}}" wx:key="date">
@@ -65,10 +172,11 @@
             data-id="{{content.id}}"
             bindtap="onContentTap">
         <view class="content-card__header">
-          <text class="content-card__icon">{{content.timeSlot === 'evening' ? '🌙' : '☀️'}}</text>
+          <text class="content-card__icon">📖</text>
           <view class="content-card__theme">
             <text class="content-card__theme-zh">{{content.themeZh}}</text>
             <text class="content-card__theme-en">{{content.themeEn}}</text>
+            <text class="content-card__category" wx:if="{{content.categoryZh}}">{{content.categoryZh}}</text>
           </view>
           <view class="content-card__arrow">
             <text class="content-card__arrow-icon">›</text>

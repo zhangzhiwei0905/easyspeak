@@ -19,7 +19,8 @@ var KEYS = {
   STUDY_CALENDAR: 'easyspeak_study_calendar',
   LAST_STUDY_DATE: 'easyspeak_last_study_date',
   STREAK_DAYS: 'easyspeak_streak_days',
-  WORD_MASTERY_CACHE: 'easyspeak_word_mastery_cache'
+  WORD_MASTERY_CACHE: 'easyspeak_word_mastery_cache',
+  LEARN_SESSION_DRAFT: 'easyspeak_learn_session_draft'
 }
 
 /* ========================================
@@ -220,6 +221,33 @@ function getTodayCache() {
 }
 
 /* ========================================
+   Learn Session Draft Helpers
+   ======================================== */
+
+function getLearnDraftKey(contentId, learnType) {
+  return String(contentId) + ':' + String(learnType || 'phrase')
+}
+
+function getLearnDraft(contentId, learnType) {
+  var drafts = get(KEYS.LEARN_SESSION_DRAFT) || {}
+  return drafts[getLearnDraftKey(contentId, learnType)] || null
+}
+
+function setLearnDraft(contentId, learnType, draft) {
+  var drafts = get(KEYS.LEARN_SESSION_DRAFT) || {}
+  drafts[getLearnDraftKey(contentId, learnType)] = draft
+  return set(KEYS.LEARN_SESSION_DRAFT, drafts)
+}
+
+function removeLearnDraft(contentId, learnType) {
+  var drafts = get(KEYS.LEARN_SESSION_DRAFT) || {}
+  var key = getLearnDraftKey(contentId, learnType)
+  if (!drafts[key]) return true
+  delete drafts[key]
+  return set(KEYS.LEARN_SESSION_DRAFT, drafts)
+}
+
+/* ========================================
    Study Data Helpers
    ======================================== */
 
@@ -314,6 +342,9 @@ module.exports = {
   setDailyCache: setDailyCache,
   getDailyCache: getDailyCache,
   getTodayCache: getTodayCache,
+  getLearnDraft: getLearnDraft,
+  setLearnDraft: setLearnDraft,
+  removeLearnDraft: removeLearnDraft,
   recordStudyDay: recordStudyDay,
   getStreakDays: getStreakDays,
   getStudyCalendar: getStudyCalendar,

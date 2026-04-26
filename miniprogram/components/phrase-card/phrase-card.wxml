@@ -1,4 +1,4 @@
-<view class="phrase-card phrase-card--{{timeSlot}} {{expanded ? 'phrase-card--expanded' : ''}}" bindtap="onTapCard">
+<view class="phrase-card {{expanded ? 'phrase-card--expanded' : ''}}" bindtap="onTapCard">
   <view class="phrase-card__border"></view>
   <view class="phrase-card__content">
     <!-- Header: phrase text -->
@@ -11,6 +11,7 @@
 
     <!-- Collapsed: brief explanation + source -->
     <view class="phrase-card__collapsed">
+      <view wx:if="{{meaning}}" class="phrase-card__meaning">{{meaning}}</view>
       <text class="phrase-card__explanation">{{explanation}}</text>
       <view class="phrase-card__meta" wx:if="{{source}}">
         <text class="phrase-card__source-tag">{{source}}</text>

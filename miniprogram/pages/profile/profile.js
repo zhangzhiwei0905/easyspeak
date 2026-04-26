@@ -55,12 +55,14 @@ Page({
   loadStats() {
     var self = this
 
-    api.get('/progress/summary')
+    api.get('/review/progress/summary')
       .then(function(data) {
         var stats = {
           studyStreak: data.study_streak || data.studyStreak || 0,
           totalPhrases: data.total_phrases || data.totalPhrases || 0,
           totalWords: data.total_words || data.totalWords || 0,
+          masteredPhrases: data.mastered_phrases || data.masteredPhrases || 0,
+          masteredWords: data.mastered_words || data.masteredWords || 0,
           totalQuiz: data.total_quiz || data.totalQuiz || 0,
           avgAccuracy: data.avg_accuracy || data.avgAccuracy || 0
         }
@@ -119,13 +121,13 @@ Page({
           item.unlocked = stats.studyStreak >= 30
           break
         case 'word_master':
-          item.unlocked = stats.totalWords >= 100
+          item.unlocked = stats.masteredWords >= 100
           break
         case 'quiz_expert':
           item.unlocked = stats.totalQuiz > 0 && stats.avgAccuracy >= 80
           break
         case 'phrase_collector':
-          item.unlocked = stats.totalPhrases >= 50
+          item.unlocked = stats.masteredPhrases >= 50
           break
       }
     })

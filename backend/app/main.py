@@ -36,12 +36,13 @@ def create_app() -> FastAPI:
     )
 
     # Register routers
-    from app.routers import daily, auth, review, quiz, admin
+    from app.routers import daily, auth, review, quiz, admin, learn
 
     app.include_router(daily.router, prefix="/api/v1/daily", tags=["daily"])
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(review.router, prefix="/api/v1/review", tags=["review"])
     app.include_router(quiz.router, prefix="/api/v1/quiz", tags=["quiz"])
+    app.include_router(learn.router, prefix="/api/v1/learn", tags=["learn"])
     app.include_router(
         admin.router, prefix="/api/v1/admin", tags=["admin"]
     )

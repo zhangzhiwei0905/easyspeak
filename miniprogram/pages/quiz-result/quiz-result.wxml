@@ -53,6 +53,7 @@
   <!-- Action Buttons -->
   <view class="result-actions">
     <button class="btn btn-primary btn-block" bindtap="onRetry">再来一次</button>
+    <button class="btn btn-accent btn-block mt-md" wx:if="{{total - correct > 0}}" bindtap="onGoWrongReview">去错题回顾</button>
     <button class="btn btn-outline btn-block mt-md" bindtap="onBackToQuiz">返回测验中心</button>
   </view>
 
@@ -113,7 +114,7 @@
         <text class="review-item__question">{{item.question}}</text>
 
         <!-- Options (compact display) -->
-        <view class="review-item__options">
+        <view class="review-item__options" wx:if="{{item.options && item.options.length > 0}}">
           <view
             class="review-item__option {{opt.isCorrect ? 'review-item__option--correct' : ''}} {{opt.key === item.userAnswerKey && !item.isCorrect && !opt.isCorrect ? 'review-item__option--wrong-user' : ''}}"
             wx:for="{{item.options}}"

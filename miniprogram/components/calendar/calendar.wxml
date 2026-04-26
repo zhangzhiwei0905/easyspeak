@@ -19,16 +19,41 @@
 
   <!-- Day grid -->
   <view class="calendar__days">
-    <view 
-      class="calendar__day {{item.isToday ? 'calendar__day--today' : ''}} {{item.isStudied ? 'calendar__day--studied' : ''}} {{item.day === 0 ? 'calendar__day--empty' : ''}}"
-      wx:for="{{days}}" 
-      wx:key="dateStr"
-      data-date-str="{{item.dateStr}}"
-      data-day="{{item.day}}"
-      bindtap="onDayTap"
-    >
+    <view class="calendar__day {{item.className}}" wx:for="{{days}}" wx:key="dateStr" data-datestr="{{item.dateStr}}" data-day="{{item.day}}" bindtap="onDayTap">
       <text class="calendar__day-num" wx:if="{{item.day > 0}}">{{item.day}}</text>
-      <view class="calendar__day-dot" wx:if="{{item.isStudied}}"></view>
+      <!-- Colored dot for states -->
+      <view class="calendar__day-dot" wx:if="{{item.status === 'unlearned'}}"></view>
+      <view class="calendar__day-dot calendar__day-dot--green" wx:if="{{item.status === 'studied'}}"></view>
+      <!-- Excellent: solid filled -->
+      <view class="calendar__day-solid" wx:if="{{item.status === 'excellent'}}"></view>
+      <!-- Poor: yellow dot -->
+      <view class="calendar__day-dot calendar__day-dot--yellow" wx:if="{{item.status === 'poor'}}"></view>
+      <!-- Review count badge -->
+      <text class="calendar__day-review" wx:if="{{item.reviewed > 0}}">复{{item.reviewed}}</text>
+    </view>
+  </view>
+
+  <!-- Legend -->
+  <view class="calendar__legend">
+    <view class="calendar__legend-item">
+      <view class="calendar__legend-dot calendar__legend-dot--blue"></view>
+      <text class="calendar__legend-text">未学习</text>
+    </view>
+    <view class="calendar__legend-item">
+      <view class="calendar__legend-dot calendar__legend-dot--green"></view>
+      <text class="calendar__legend-text">已学习</text>
+    </view>
+    <view class="calendar__legend-item">
+      <view class="calendar__legend-dot calendar__legend-dot--dark"></view>
+      <text class="calendar__legend-text">优秀</text>
+    </view>
+    <view class="calendar__legend-item">
+      <view class="calendar__legend-dot calendar__legend-dot--yellow"></view>
+      <text class="calendar__legend-text">待加强</text>
+    </view>
+    <view class="calendar__legend-item">
+      <view class="calendar__legend-dot calendar__legend-dot--red"></view>
+      <text class="calendar__legend-text">有复习</text>
     </view>
   </view>
 </view>

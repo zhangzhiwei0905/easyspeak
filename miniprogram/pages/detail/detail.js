@@ -15,41 +15,40 @@ function formatDisplayDate(dateStr) {
   return parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日'
 }
 
+function formatDateStr(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return y + '-' + m + '-' + d
+}
+
 function getWeekday(dateStr) {
-  if (!dateStr) return ''
-  var d = new Date(dateStr + 'T00:00:00')
-  return WEEKDAYS[d.getDay()]
+ if (!dateStr) return ''
+ var d = new Date(dateStr + 'T00:00:00')
+ return WEEKDAYS[d.getDay()]
 }
 
-function getTimeSlotIcon(timeSlot) {
-  return timeSlot === 'evening' ? '🌙' : '☀️'
-}
-
-function getTimeSlotLabel(timeSlot) {
-  return timeSlot === 'evening' ? '晚间·休闲话题' : '晨间·生活场景'
-}
 
 Page({
-  data: {
-    // Content ID
-    contentId: null,
+ data: {
+ // Content ID
+ contentId: null,
 
-    // Loading / error
-    loading: true,
-    error: false,
-    errorMsg: '',
+ // Loading / error
+ loading: true,
+ error: false,
+ errorMsg: '',
 
-    // Content data
-    content: null,
-    dateDisplay: '',
-    weekday: '',
-    timeSlot: 'morning',
-    timeSlotIcon: '☀️',
-    timeSlotLabel: '晨间·生活场景',
-    themeZh: '',
-    themeEn: '',
-    introduction: '',
-    practiceTips: '',
+ // Content data
+ content: null,
+ dateDisplay: '',
+ weekday: '',
+ themeZh: '',
+ themeEn: '',
+ category: '',
+ categoryZh: '',
+ introduction: '',
+ practiceTips: '',
 
     // Phrases (normalized)
     phrases: [],
@@ -63,9 +62,19 @@ Page({
     // Expanded phrase index (-1 = none expanded)
     expandedPhraseIndex: -1,
 
+    // Expanded word index (-1 = none expanded)
+    expandedWordIndex: -1,
+
     // Study state
+    isToday: false,
     hasStudied: false,
-    studying: false
+    studying: false,
+    phraseStudied: false,
+    wordStudied: false,
+
+    // Jump target target
+    targetType: null,
+    targetId: null
   },
 
   onLoad: function (options) {
@@ -81,14 +90,29 @@ Page({
     }
 
     // Accept optional tab param to scroll to phrases or words
+    var targetType = options.targetType || null
+    var targetId = options.targetId || null
     var tab = options.tab || 'phrases'
+
+    if (targetType === 'word') tab = 'words'
+    if (targetType === 'phrase') tab = 'phrases'
 
     this.setData({
       contentId: contentId,
-      activeTab: tab
+      activeTab: tab,
+      targetType: targetType,
+      targetId: targetId
     })
 
     this._loadContent()
+  },
+
+  onUnload: function () {
+    if (this._audioCtx) {
+      try { this._audioCtx.stop() } catch (e) {}
+      try { this._audioCtx.destroy() } catch (e) {}
+      this._audioCtx = null
+    }
   },
 
   onShareAppMessage: function () {
@@ -147,14 +171,14 @@ Page({
       return
     }
 
-    var content = data.content || data
-    var timeSlot = content.time_slot || 'morning'
+ var content = data.content || data
 
-    // Normalize phrases
+ // Normalize phrases
     var phrases = (content.phrases || []).map(function (p, index) {
       return {
         id: p.id,
         phrase: p.phrase || '',
+        meaning: p.meaning || '',
         explanation: p.explanation || '',
         examples: [
           { en: p.example_1 || '', cn: p.example_1_cn || '' },
@@ -186,24 +210,54 @@ Page({
     words.sort(function (a, b) { return a.sort_order - b.sort_order })
 
     var dateStr = content.date || ''
+    var isToday = (dateStr === formatDateStr(new Date()))
     var hasStudied = !!(content.studied || content.has_studied)
 
-    this.setData({
-      content: content,
-      dateDisplay: formatDisplayDate(dateStr),
-      weekday: getWeekday(dateStr),
-      timeSlot: timeSlot,
-      timeSlotIcon: getTimeSlotIcon(timeSlot),
-      timeSlotLabel: getTimeSlotLabel(timeSlot),
-      themeZh: content.theme_zh || '',
-      themeEn: content.theme_en || '',
-      introduction: content.introduction || '',
-      practiceTips: content.practice_tips || content.practiceTips || '',
-      phrases: phrases,
-      words: words,
-      hasStudied: hasStudied,
-      error: false
-    })
+ this.setData({
+ content: content,
+ dateDisplay: formatDisplayDate(dateStr),
+ weekday: getWeekday(dateStr),
+ themeZh: content.theme_zh || '',
+ themeEn: content.theme_en || '',
+ category: content.category || '',
+ categoryZh: content.category_zh || '',
+ introduction: content.introduction || '',
+ practiceTips: content.practice_tips || content.practiceTips || '',
+ phrases: phrases,
+ words: words,
+ isToday: isToday,
+ hasStudied: hasStudied,
+ error: false
+ }, function() {
+      if (this.data.targetType && this.data.targetId) {
+        this._scrollToTarget()
+      }
+    }.bind(this))
+  },
+
+  _scrollToTarget: function() {
+    var type = this.data.targetType
+    var targetId = this.data.targetId
+    if (!type || !targetId) return
+
+    var list = type === 'phrase' ? this.data.phrases : this.data.words
+    var index = list.findIndex(function(item) { return String(item.id) === String(targetId) })
+
+    if (index !== -1) {
+      if (type === 'phrase') {
+        this.setData({ expandedPhraseIndex: index })
+      } else {
+        this.setData({ expandedWordIndex: index })
+      }
+
+      setTimeout(function() {
+        wx.pageScrollTo({
+          selector: '#' + type + '-' + targetId,
+          duration: 300,
+          offsetTop: -20
+        })
+      }, 300)
+    }
   },
 
   // ========================
@@ -215,7 +269,8 @@ Page({
     if (tab === this.data.activeTab) return
     this.setData({
       activeTab: tab,
-      expandedPhraseIndex: -1
+      expandedPhraseIndex: -1,
+      expandedWordIndex: -1
     })
   },
 
@@ -230,9 +285,59 @@ Page({
     }
   },
 
-  onWordTap: function (e) {
+  onWordPlay: function (e) {
     var word = e.currentTarget.dataset.word
-    // Navigate to word-list page filtered by this content
+    var type = e.currentTarget.dataset.type || '2'
+    if (!word) return
+
+    if (this._audioCtx) {
+      try { this._audioCtx.stop() } catch (e) {}
+      try { this._audioCtx.destroy() } catch (e) {}
+    }
+
+    var self = this
+    var audio = wx.createInnerAudioContext()
+    this._audioCtx = audio
+
+    var youdaoUrl = 'https://dict.youdao.com/dictvoice?audio=' + encodeURIComponent(word) + '&type=' + type
+    var baiduUrl = 'https://fanyi.baidu.com/gettts?lan=en&text=' + encodeURIComponent(word) + '&spd=2&source=web'
+    var triedFallback = false
+
+    audio.src = youdaoUrl
+    audio.play()
+
+    audio.onError(function (err) {
+      console.error('[Detail] Audio error:', err)
+      if (!triedFallback) {
+        triedFallback = true
+        console.log('[Detail] Trying Baidu TTS fallback for:', word)
+        if (self._audioCtx) {
+          try { self._audioCtx.stop() } catch (e) {}
+          try { self._audioCtx.destroy() } catch (e) {}
+        }
+        var audio2 = wx.createInnerAudioContext()
+        self._audioCtx = audio2
+        audio2.src = baiduUrl
+        audio2.play()
+        audio2.onError(function (err2) {
+          console.error('[Detail] Baidu TTS fallback also failed:', err2)
+          // Silently fail — no toast
+        })
+      }
+      // Silently fail on second error
+    })
+  },
+
+  onWordToggle: function (e) {
+    var index = e.currentTarget.dataset.index
+    if (this.data.expandedWordIndex === index) {
+      this.setData({ expandedWordIndex: -1 })
+    } else {
+      this.setData({ expandedWordIndex: index })
+    }
+  },
+
+  onWordNavigate: function (e) {
     if (this.data.contentId) {
       wx.navigateTo({
         url: '/pages/word-list/word-list?contentId=' + this.data.contentId
@@ -240,42 +345,77 @@ Page({
     }
   },
 
-  onStartStudy: function () {
-    var self = this
-    if (self.data.studying || self.data.hasStudied) return
-    if (!self.data.contentId) return
+  onStartLearnPhrase: function () {
+    if (this._promptLearnDraft('phrase')) return
 
-    self.setData({ studying: true })
-
-    // Mark content as studied via API
-    api.post('/progress/study', {
-      content_id: self.data.contentId
-    }).then(function (data) {
-      // Record study day locally
-      storage.recordStudyDay()
-      self.setData({
-        hasStudied: true,
-        studying: false
+    if (this.data.phraseStudied) {
+      // Already studied, allow re-learning
+      wx.showModal({
+        title: '再学一次？',
+        content: '你已经学过今日短语了，要再学一遍吗？',
+        confirmText: '再学一次',
+        cancelText: '取消',
+        success: function (res) {
+          if (res.confirm) {
+            wx.navigateTo({
+              url: '/pages/learn-session/learn-session?content_id=' + this.data.contentId + '&learn_type=phrase'
+            })
+          }
+        }.bind(this)
       })
-      wx.showToast({
-        title: '打卡成功！继续加油',
-        icon: 'success',
-        duration: 2000
-      })
-    }).catch(function (err) {
-      console.error('[Detail] Mark study failed:', err)
-      // Still mark locally on failure for better UX
-      storage.recordStudyDay()
-      self.setData({
-        hasStudied: true,
-        studying: false
-      })
-      wx.showToast({
-        title: '已记录学习',
-        icon: 'success',
-        duration: 1500
-      })
+      return
+    }
+    if (!this.data.contentId) return
+    wx.navigateTo({
+      url: '/pages/learn-session/learn-session?content_id=' + this.data.contentId + '&learn_type=phrase'
     })
+  },
+
+  onStartLearnWord: function () {
+    if (this._promptLearnDraft('word')) return
+
+    if (this.data.wordStudied) {
+      wx.showModal({
+        title: '再学一次？',
+        content: '你已经学过今日单词了，要再学一遍吗？',
+        confirmText: '再学一次',
+        cancelText: '取消',
+        success: function (res) {
+          if (res.confirm) {
+            wx.navigateTo({
+              url: '/pages/learn-session/learn-session?content_id=' + this.data.contentId + '&learn_type=word'
+            })
+          }
+        }.bind(this)
+      })
+      return
+    }
+    if (!this.data.contentId) return
+    wx.navigateTo({
+      url: '/pages/learn-session/learn-session?content_id=' + this.data.contentId + '&learn_type=word'
+    })
+  },
+
+  _promptLearnDraft: function (learnType) {
+    if (!this.data.contentId) return false
+
+    var draft = storage.getLearnDraft(this.data.contentId, learnType)
+    if (!draft) return false
+
+    var self = this
+    var url = '/pages/learn-session/learn-session?content_id=' + self.data.contentId + '&learn_type=' + learnType
+    wx.showActionSheet({
+      itemList: ['继续上次学习', '重新开始'],
+      success: function (res) {
+        if (res.tapIndex === 0) {
+          wx.navigateTo({ url: url + '&resume=1' })
+        } else if (res.tapIndex === 1) {
+          storage.removeLearnDraft(self.data.contentId, learnType)
+          wx.navigateTo({ url: url })
+        }
+      }
+    })
+    return true
   },
 
   onRetry: function () {

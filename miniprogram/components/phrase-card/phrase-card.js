@@ -1,30 +1,30 @@
 Component({
-  properties: {
-    phrase: {
-      type: String,
-      value: ''
-    },
-    explanation: {
-      type: String,
-      value: ''
-    },
-    examples: {
-      type: Array,
-      value: []
-    },
-    source: {
-      type: String,
-      value: ''
-    },
-    showDetail: {
-      type: Boolean,
-      value: false
-    },
-    timeSlot: {
-      type: String,
-      value: 'morning'
-    }
-  },
+ properties: {
+ phrase: {
+ type: String,
+ value: ''
+ },
+ meaning: {
+ type: String,
+ value: ''
+ },
+ explanation: {
+ type: String,
+ value: ''
+ },
+ examples: {
+ type: Array,
+ value: []
+ },
+ source: {
+ type: String,
+ value: ''
+ },
+ showDetail: {
+ type: Boolean,
+ value: false
+ }
+ },
 
   data: {
     expanded: false

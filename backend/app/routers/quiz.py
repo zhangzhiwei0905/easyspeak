@@ -1,33 +1,278 @@
-"""Quiz system - generate questions, submit answers, track stats."""
+"""Quiz system - generate questions, submit answers, and track stats."""
+
+import asyncio
+import logging
 import random
+import re
+from collections import defaultdict
+from typing import Iterable, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from datetime import datetime
+from sqlalchemy.orm import Session, joinedload
+
 from app.database import get_db
-from app.models.user import User
-from app.models.quiz import QuizRecord
+from app.models.daily import DailyContent
 from app.models.phrase import Phrase
+from app.models.quiz import QuizRecord
+from app.models.user import User
 from app.models.word import Word
+from app.routers.auth import get_current_user
 from app.schemas.quiz import (
-    QuizQuestion,
-    QuizOption,
     QuizGenerateRequest,
-    QuizSubmitRequest,
+    QuizOption,
+    QuizQuestion,
     QuizResult,
     QuizResultItem,
     QuizStats,
+    QuizSubmitRequest,
+    QuizThemeItem,
 )
-from app.routers.auth import get_current_user
+from app.utils.phrase_meaning import (
+    get_phrase_learning_explanation,
+    get_phrase_short_meaning,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+DEFAULT_QUESTION_TYPES = [
+    "phrase_meaning_choice",
+    "word_phonetic_choice",
+    "phrase_fill_input",
+]
+MAX_WRONG_REVIEW_COUNT = 20
 
-def _get_distractors(correct: str, all_items: list[str], count: int = 3) -> list[str]:
-    """Get random distractors different from correct answer."""
-    candidates = [item for item in all_items if item.lower() != correct.lower()]
+
+def _normalize_answer(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    return " ".join(text.strip().lower().split())
+
+
+def _unique_texts(values: Iterable[str]) -> list[str]:
+    seen = set()
+    unique = []
+    for value in values:
+        normalized = _normalize_answer(value)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(value)
+    return unique
+
+
+def _get_distractors(correct: str, all_items: Iterable[str], count: int = 3) -> list[str]:
+    candidates = [
+        item for item in _unique_texts(all_items)
+        if _normalize_answer(item) != _normalize_answer(correct)
+    ]
     random.shuffle(candidates)
     return candidates[:count]
+
+
+def _make_choice_options(correct_text: str, distractors: list[str]) -> Optional[list[QuizOption]]:
+    if len(distractors) < 3:
+        return None
+
+    options_raw = [correct_text] + distractors[:3]
+    random.shuffle(options_raw)
+    return [
+        QuizOption(key=chr(65 + index), text=text, is_answer=_normalize_answer(text) == _normalize_answer(correct_text))
+        for index, text in enumerate(options_raw)
+    ]
+
+
+def _get_phrase_examples(phrase: Phrase) -> list[str]:
+    return [example for example in [phrase.example_1, phrase.example_2, phrase.example_3] if example]
+
+
+async def _get_ai_distractors(phrase_text: str, meaning: str, count: int = 3) -> Optional[list[str]]:
+    """Try to generate AI distractors. Returns None on failure."""
+    try:
+        from app.utils.ai_client import generate_distractors
+        return await generate_distractors(phrase_text, meaning, count)
+    except Exception as e:
+        logger.warning("AI distractor generation failed for '%s': %s", phrase_text, e)
+        return None
+
+
+def _build_phrase_meaning_question(phrase: Phrase, phrase_pool: list[Phrase], ai_distractors: Optional[list[str]] = None) -> Optional[QuizQuestion]:
+    meaning = get_phrase_short_meaning(phrase)
+    if not meaning:
+        return None
+
+    # Use AI-generated distractors if available, otherwise fall back to pool
+    if ai_distractors and len(ai_distractors) >= 3:
+        distractors = ai_distractors[:3]
+    else:
+        distractor_pool = [item for item in [get_phrase_short_meaning(entry) for entry in phrase_pool] if item]
+        distractors = _get_distractors(meaning, distractor_pool)
+
+    options = _make_choice_options(meaning, distractors)
+    if not options:
+        return None
+
+    return QuizQuestion(
+        question_id=phrase.id,
+        question_type="phrase_meaning_choice",
+        interaction_type="choice",
+        prompt=f'"{phrase.phrase}" 是什么意思？',
+        options=options,
+        accepted_answers=[meaning],
+        hint=get_phrase_learning_explanation(phrase),
+        item_type="phrase",
+    )
+
+
+def _build_word_phonetic_question(word: Word, word_pool: list[Word]) -> Optional[QuizQuestion]:
+    distractors = _get_distractors(word.word, [item.word for item in word_pool if item.word])
+    options = _make_choice_options(word.word, distractors)
+    if not options:
+        return None
+
+    return QuizQuestion(
+        question_id=word.id,
+        question_type="word_phonetic_choice",
+        interaction_type="choice",
+        prompt=f'{word.phonetic} 对应哪个单词？',
+        options=options,
+        accepted_answers=[word.word],
+        hint=word.meaning,
+        item_type="word",
+    )
+
+
+def _build_phrase_fill_input_question(phrase: Phrase) -> Optional[QuizQuestion]:
+    example = next((item for item in _get_phrase_examples(phrase) if _normalize_answer(phrase.phrase) in _normalize_answer(item)), None)
+    if not example:
+        return None
+
+    blanked = re.sub(re.escape(phrase.phrase), "______", example, flags=re.IGNORECASE)
+    if blanked == example:
+        return None
+
+    return QuizQuestion(
+        question_id=phrase.id,
+        question_type="phrase_fill_input",
+        interaction_type="text_input",
+        prompt=f"补全短语：\n{blanked}",
+        placeholder="请输入完整短语",
+        accepted_answers=[phrase.phrase],
+        hint=get_phrase_learning_explanation(phrase),
+        item_type="phrase",
+    )
+
+
+def _question_from_item(
+    question_type: str,
+    question_id: int,
+    db: Session,
+    phrase_pool: list[Phrase],
+    word_pool: list[Word],
+) -> Optional[QuizQuestion]:
+    if question_type == "phrase_meaning_choice":
+        phrase = db.query(Phrase).filter(Phrase.id == question_id).first()
+        return _build_phrase_meaning_question(phrase, phrase_pool) if phrase else None
+    if question_type == "word_phonetic_choice":
+        word = db.query(Word).filter(Word.id == question_id).first()
+        return _build_word_phonetic_question(word, word_pool) if word and word.phonetic else None
+    if question_type == "phrase_fill_input":
+        phrase = db.query(Phrase).filter(Phrase.id == question_id).first()
+        return _build_phrase_fill_input_question(phrase) if phrase else None
+    return None
+
+
+def _get_question_meta(question_id: int, question_type: str, db: Session) -> dict:
+    phrase = db.query(Phrase).filter(Phrase.id == question_id).first()
+    if phrase:
+        meaning = get_phrase_short_meaning(phrase) or phrase.phrase
+        if question_type == "phrase_fill_input":
+            question = _build_phrase_fill_input_question(phrase)
+            return {
+                "prompt": question.prompt if question else "补全短语",
+                "correct_answer": phrase.phrase,
+                "hint": get_phrase_learning_explanation(phrase),
+            }
+        return {
+            "prompt": f'"{phrase.phrase}" 是什么意思？',
+            "correct_answer": meaning,
+            "hint": get_phrase_learning_explanation(phrase),
+        }
+
+    word = db.query(Word).filter(Word.id == question_id).first()
+    if word:
+        return {
+            "prompt": f'{word.phonetic or ""} 对应哪个单词？',
+            "correct_answer": word.word,
+            "hint": word.meaning,
+        }
+
+    return {
+        "prompt": "",
+        "correct_answer": "",
+        "hint": None,
+    }
+
+
+def _latest_wrong_pairs(user: User, db: Session) -> list[tuple[int, str]]:
+    records = (
+        db.query(QuizRecord)
+        .filter(QuizRecord.openid == user.openid)
+        .order_by(QuizRecord.answered_at.desc(), QuizRecord.id.desc())
+        .all()
+    )
+
+    latest_by_pair = {}
+    for record in records:
+        pair = (record.question_id, record.quiz_type)
+        if pair not in latest_by_pair:
+            latest_by_pair[pair] = record
+
+    wrong_pairs = []
+    for pair, record in latest_by_pair.items():
+        if not record.correct:
+            wrong_pairs.append(pair)
+    return wrong_pairs
+
+
+def _accuracy_percent(correct: int, total: int) -> float:
+    if total <= 0:
+        return 0.0
+    return round((correct / total) * 100, 1)
+
+
+@router.get("/themes", response_model=list[QuizThemeItem])
+async def get_quiz_themes(db: Session = Depends(get_db)):
+    """Return available daily-content themes for theme quizzes."""
+    contents = (
+        db.query(DailyContent)
+        .options(joinedload(DailyContent.phrases), joinedload(DailyContent.words))
+        .order_by(DailyContent.date.desc())
+        .all()
+    )
+
+    items = []
+    for content in contents:
+        phrase_count = len([
+            phrase for phrase in (content.phrases or [])
+            if _build_phrase_meaning_question(phrase, content.phrases or [])
+        ])
+        word_count = len([
+            word for word in (content.words or [])
+            if word.phonetic and _build_word_phonetic_question(word, content.words or [])
+        ])
+        phrase_fill_count = len([phrase for phrase in content.phrases or [] if _build_phrase_fill_input_question(phrase)])
+        items.append(
+            QuizThemeItem(
+                content_id=content.id,
+                theme_zh=content.theme_zh,
+                theme_en=content.theme_en,
+                question_count=phrase_count + word_count + phrase_fill_count,
+            )
+        )
+
+    return items
 
 
 @router.post("/generate", response_model=list[QuizQuestion])
@@ -36,124 +281,91 @@ async def generate_quiz(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Generate quiz questions."""
-    questions = []
+    """Generate quiz questions for the requested mode."""
+    question_types = request.question_types or DEFAULT_QUESTION_TYPES
+    question_count = max(1, request.question_count)
+    mode = request.mode or "random"
 
-    if request.type in ("phrase", "mixed") and request.type != "fill_blank":
-        phrase_query = db.query(Phrase)
-        if request.content_id:
-            phrase_query = phrase_query.filter(Phrase.content_id == request.content_id)
-        phrases = phrase_query.all()
-        all_meanings = [p.explanation[:50] for p in phrases]
-        phrase_count = request.count // 2 if request.type == "mixed" else request.count
-        selected = random.sample(phrases, min(phrase_count, len(phrases)))
+    phrase_query = db.query(Phrase)
+    word_query = db.query(Word).filter(Word.phonetic.isnot(None))
+    if request.content_ids:
+        phrase_query = phrase_query.filter(Phrase.content_id.in_(request.content_ids))
+        word_query = word_query.filter(Word.content_id.in_(request.content_ids))
 
-        for p in selected:
-            distractors = _get_distractors(p.explanation[:50], all_meanings)
-            options = [p.explanation[:50]] + distractors
-            random.shuffle(options)
-            answer_key = chr(65 + options.index(p.explanation[:50]))
+    phrase_pool = phrase_query.all()
+    word_pool = word_query.all()
 
-            questions.append(
-                QuizQuestion(
-                    question_id=p.id,
-                    quiz_type="phrase_meaning",
-                    question_text=f'"{p.phrase}" 是什么意思？',
-                    options=[QuizOption(key=chr(65 + i), text=o) for i, o in enumerate(options)],
-                    answer=answer_key,
-                    item_type="phrase",
-                )
-            )
+    questions: list[QuizQuestion] = []
 
-    if request.type in ("word", "mixed"):
-        word_query = db.query(Word).filter(Word.phonetic.isnot(None))
-        if request.content_id:
-            word_query = word_query.filter(Word.content_id == request.content_id)
-        words = word_query.all()
-        all_words = [w.word for w in words]
-        word_count = request.count // 2 if request.type == "mixed" else request.count
-        selected = random.sample(words, min(word_count, len(words)))
-
-        for w in selected:
-            if not w.phonetic:
+    if mode == "wrong_review":
+        requested_types = set(question_types)
+        wrong_pairs = _latest_wrong_pairs(user, db)
+        for question_id, question_type in wrong_pairs:
+            if question_type not in requested_types:
                 continue
-            distractors = _get_distractors(w.word, all_words)
-            options = [w.word] + distractors
-            random.shuffle(options)
-            answer_key = chr(65 + options.index(w.word))
+            question = _question_from_item(question_type, question_id, db, phrase_pool, word_pool)
+            if question:
+                questions.append(question)
+            if len(questions) >= min(question_count, MAX_WRONG_REVIEW_COUNT):
+                break
+        return questions[: min(question_count, MAX_WRONG_REVIEW_COUNT)]
 
-            questions.append(
-                QuizQuestion(
-                    question_id=w.id,
-                    quiz_type="word_phonetic",
-                    question_text=f'{w.phonetic} 对应哪个单词？',
-                    options=[QuizOption(key=chr(65 + i), text=o) for i, o in enumerate(options)],
-                    answer=answer_key,
-                    item_type="word",
+    if mode == "theme" and not request.content_ids:
+        raise HTTPException(status_code=422, detail="theme mode requires content_ids")
+
+    if "phrase_meaning_choice" in question_types:
+        # Pre-generate AI distractors for phrase meaning questions (with timeout)
+        phrase_meanings = []
+        for phrase in phrase_pool:
+            meaning = get_phrase_short_meaning(phrase)
+            if meaning:
+                phrase_meanings.append((phrase, meaning))
+
+        ai_distractors_map: dict[int, list[str]] = {}
+        if phrase_meanings:
+            try:
+                # Generate AI distractors concurrently with a timeout
+                async def _gen_one(p: Phrase, m: str):
+                    result = await _get_ai_distractors(p.phrase, m)
+                    return (p.id, result)
+
+                tasks = [_gen_one(p, m) for p, m in phrase_meanings]
+                results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=8.0,
                 )
-            )
+                for result in results:
+                    if isinstance(result, Exception):
+                        continue
+                    pid, distractors = result
+                    if distractors:
+                        ai_distractors_map[pid] = distractors
+            except asyncio.TimeoutError:
+                logger.info("AI distractor generation timed out, using fallback")
 
-    # Fill-in-the-blank: pick phrases with examples, blank out the phrase from the example
-    if request.type in ("fill_blank", "mixed"):
-        phrase_query = db.query(Phrase)
-        if request.content_id:
-            phrase_query = phrase_query.filter(Phrase.content_id == request.content_id)
-        all_phrases = phrase_query.all()
+        for phrase in phrase_pool:
+            ai_d = ai_distractors_map.get(phrase.id)
+            question = _build_phrase_meaning_question(phrase, phrase_pool, ai_d)
+            if question:
+                questions.append(question)
 
-        # Only use phrases that have at least one example sentence
-        phrases_with_examples = [
-            p for p in all_phrases
-            if p.example_1 or p.example_2 or p.example_3
-        ]
-        all_phrase_texts = [p.phrase for p in all_phrases]
+    if "word_phonetic_choice" in question_types:
+        for word in word_pool:
+            question = _build_word_phonetic_question(word, word_pool)
+            if question:
+                questions.append(question)
 
-        fill_count = request.count if request.type == "fill_blank" else max(request.count // 3, 1)
-        if phrases_with_examples:
-            selected = random.sample(
-                phrases_with_examples, min(fill_count, len(phrases_with_examples))
-            )
+    if "phrase_fill_input" in question_types:
+        for phrase in phrase_pool:
+            question = _build_phrase_fill_input_question(phrase)
+            if question:
+                questions.append(question)
 
-            for p in selected:
-                # Pick a random available example
-                examples = []
-                if p.example_1:
-                    examples.append(p.example_1)
-                if p.example_2:
-                    examples.append(p.example_2)
-                if p.example_3:
-                    examples.append(p.example_3)
-                example = random.choice(examples)
-
-                # Replace phrase with blank (case-insensitive)
-                blanked = example.replace(p.phrase, "______")
-                if blanked == example:
-                    # Phrase not found literally — try lowercase
-                    blanked = example.replace(p.phrase.lower(), "______")
-                if blanked == example:
-                    # Still no match, skip this phrase
-                    continue
-
-                distractors = _get_distractors(p.phrase, all_phrase_texts)
-                options = [p.phrase] + distractors
-                random.shuffle(options)
-                answer_key = chr(65 + options.index(p.phrase))
-
-                hint = p.explanation[:30] + "..." if len(p.explanation) > 30 else p.explanation
-
-                questions.append(
-                    QuizQuestion(
-                        question_id=p.id,
-                        quiz_type="fill_blank",
-                        question_text=f'选择正确的短语填入空白处：\n"{blanked}"',
-                        options=[QuizOption(key=chr(65 + i), text=o) for i, o in enumerate(options)],
-                        answer=answer_key,
-                        hint=hint,
-                        item_type="phrase",
-                    )
-                )
+    if not questions:
+        raise HTTPException(status_code=404, detail="没有可用的题目")
 
     random.shuffle(questions)
-    return questions[:request.count]
+    return questions[:question_count]
 
 
 @router.post("/submit", response_model=QuizResult)
@@ -162,87 +374,37 @@ async def submit_quiz(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Submit quiz answers and get results."""
+    """Submit one or more quiz answers and persist the records."""
     details = []
     correct_count = 0
 
-    # Build lookup: question_id -> correct answer info
-    answer_lookup = {}
-    for ans in request.answers:
-        if ans.question_id in answer_lookup:
-            continue
-
-        quiz_type = ans.quiz_type or "phrase_meaning"
-
-        # Try phrase
-        phrase = db.query(Phrase).filter(Phrase.id == ans.question_id).first()
-        if phrase:
-            # Determine correct answer text based on quiz type
-            if quiz_type == "fill_blank":
-                correct_text = phrase.phrase
-                question_text = f'选择正确的短语填入空白处'
-            else:
-                # phrase_meaning: correct answer is the explanation text
-                correct_text = phrase.explanation[:50]
-                question_text = f'"{phrase.phrase}" 是什么意思？'
-
-            answer_lookup[ans.question_id] = {
-                "quiz_type": quiz_type,
-                "question_text": question_text,
-                "correct_answer": correct_text,
-            }
-            continue
-
-        # Try word
-        word = db.query(Word).filter(Word.id == ans.question_id).first()
-        if word:
-            answer_lookup[ans.question_id] = {
-                "quiz_type": quiz_type if quiz_type != "phrase_meaning" else "word_phonetic",
-                "question_text": f'{word.phonetic or ""} 对应哪个单词？',
-                "correct_answer": word.word,
-            }
-
-    for ans in request.answers:
-        info = answer_lookup.get(ans.question_id, {
-            "quiz_type": "unknown",
-            "question_text": "",
-            "correct_answer": "",
-        })
-
-        # Determine correctness: if the user's selected option matches the answer
-        is_correct = (ans.answer == info["correct_answer"])
+    for answer in request.answers:
+        meta = _get_question_meta(answer.question_id, answer.question_type, db)
+        normalized_user_answer = _normalize_answer(answer.answer)
+        normalized_correct_answer = _normalize_answer(meta["correct_answer"])
+        is_correct = normalized_user_answer == normalized_correct_answer
 
         if is_correct:
             correct_count += 1
 
-        # Record to database
-        record = QuizRecord(
-            openid=user.openid,
-            quiz_type=info["quiz_type"],
-            question_id=ans.question_id,
-            correct=is_correct,
+        db.add(
+            QuizRecord(
+                openid=user.openid,
+                quiz_type=answer.question_type,
+                question_id=answer.question_id,
+                correct=is_correct,
+            )
         )
-        db.add(record)
-
-        # Get explanation/hint for wrong-answer review
-        explanation = None
-        phrase_obj = db.query(Phrase).filter(Phrase.id == ans.question_id).first()
-        if phrase_obj:
-            explanation = phrase_obj.explanation
-        else:
-            word_obj = db.query(Word).filter(Word.id == ans.question_id).first()
-            if word_obj:
-                explanation = f"{word_obj.word} ({word_obj.part_of_speech or ''}): {word_obj.meaning or ''}"
 
         details.append(
             QuizResultItem(
-                question_id=ans.question_id,
-                quiz_type=info["quiz_type"],
-                question_text=info["question_text"],
-                user_answer=ans.answer,
-                correct_answer=info["correct_answer"],
+                question_id=answer.question_id,
+                question_type=answer.question_type,
+                prompt=meta["prompt"],
+                user_answer=answer.answer,
+                correct_answer=meta["correct_answer"],
                 correct=is_correct,
-                hint=explanation,
+                hint=meta["hint"],
             )
         )
 
@@ -251,7 +413,7 @@ async def submit_quiz(
     return QuizResult(
         total=len(request.answers),
         correct=correct_count,
-        accuracy=correct_count / len(request.answers) if request.answers else 0,
+        accuracy=_accuracy_percent(correct_count, len(request.answers)),
         details=details,
     )
 
@@ -261,51 +423,63 @@ async def get_quiz_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get quiz statistics for current user."""
-    total = (
-        db.query(func.count(QuizRecord.id))
-        .filter(QuizRecord.openid == user.openid)
-        .scalar()
-        or 0
-    )
-    correct = (
-        db.query(func.count(QuizRecord.id))
-        .filter(QuizRecord.openid == user.openid, QuizRecord.correct == True)
-        .scalar()
-        or 0
-    )
-
-    # Calculate current and max streak
+    """Get quiz statistics for the current user."""
     records = (
         db.query(QuizRecord)
         .filter(QuizRecord.openid == user.openid)
-        .order_by(QuizRecord.answered_at.desc())
-        .limit(200)
+        .order_by(QuizRecord.answered_at.desc(), QuizRecord.id.desc())
         .all()
     )
 
+    total = len(records)
+    correct = len([record for record in records if record.correct])
+
     current_streak = 0
+    for record in records:
+        if record.correct:
+            current_streak += 1
+        else:
+            break
+
     max_streak = 0
     temp_streak = 0
-
-    for r in records:
-        if r.correct:
+    for record in reversed(records):
+        if record.correct:
             temp_streak += 1
             max_streak = max(max_streak, temp_streak)
         else:
             temp_streak = 0
 
-    # Recalculate current streak from most recent
-    for r in records:
-        if r.correct:
-            current_streak += 1
-        else:
-            break
+    grouped = defaultdict(lambda: {"total": 0, "correct": 0})
+    latest_by_pair = {}
+    for record in records:
+        grouped[record.quiz_type]["total"] += 1
+        if record.correct:
+            grouped[record.quiz_type]["correct"] += 1
+
+        pair = (record.question_id, record.quiz_type)
+        if pair not in latest_by_pair:
+            latest_by_pair[pair] = record
+
+    by_type = []
+    for question_type, stats in grouped.items():
+        by_type.append(
+            {
+                "question_type": question_type,
+                "total_answered": stats["total"],
+                "total_correct": stats["correct"],
+                "accuracy": _accuracy_percent(stats["correct"], stats["total"]),
+            }
+        )
+
+    wrong_count = len([record for record in latest_by_pair.values() if not record.correct])
 
     return QuizStats(
         total_answered=total,
         total_correct=correct,
-        accuracy=correct / total if total > 0 else 0,
+        accuracy=_accuracy_percent(correct, total),
         current_streak=current_streak,
         max_streak=max_streak,
+        wrong_count=wrong_count,
+        by_type=sorted(by_type, key=lambda item: item["question_type"]),
     )

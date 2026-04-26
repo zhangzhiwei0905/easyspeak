@@ -1,43 +1,29 @@
-/**
- * EasySpeak - Quiz Page (测验中心 - Tab 4)
- * 4 quiz modes: Lightning, Theme, Wrong Review, Stats
- */
-
 const api = require('../../utils/api')
 const auth = require('../../utils/auth')
 
 Page({
   data: {
     loading: true,
-    // Quiz stats
     stats: {
       total_answered: 0,
       accuracy: 0,
       current_streak: 0,
-      max_streak: 0
+      max_streak: 0,
+      wrong_count: 0
     },
-    // Theme list for theme quiz
     themes: [],
     selectedThemes: [],
-    // Wrong question count
     wrongCount: 0,
-    // UI state
     showThemePicker: false,
     showStatsPanel: false
   },
 
-  onLoad: function () {
-    // nothing
-  },
-
   onShow: function () {
-    this._loadStats()
-    this._loadThemes()
+    this._loadData()
   },
 
   onPullDownRefresh: function () {
-    var self = this
-    Promise.all([self._loadStats(), self._loadThemes()])
+    this._loadData()
       .then(function () {
         wx.stopPullDownRefresh()
       })
@@ -46,119 +32,159 @@ Page({
       })
   },
 
-  // ========================
-  // Data Loading
-  // ========================
-
-  _loadStats: function () {
+  _loadData: function () {
     var self = this
+    self.setData({ loading: true })
+
     return auth.ensureLogin().then(function (loggedIn) {
       if (!loggedIn) {
         self.setData({ loading: false })
         return
       }
-      return api.get('/quiz/stats').then(function (data) {
+
+      return Promise.all([
+        self._loadStats(),
+        self._loadThemes()
+      ]).then(function () {
+        self.setData({ loading: false })
+      }).catch(function (err) {
+        self.setData({ loading: false })
+        throw err
+      })
+    })
+  },
+
+  _loadStats: function () {
+    var self = this
+    return api.get('/quiz/stats')
+      .then(function (data) {
         var stats = data || {}
         self.setData({
-          loading: false,
           stats: {
             total_answered: stats.total_answered || 0,
             accuracy: stats.accuracy || 0,
             current_streak: stats.current_streak || 0,
-            max_streak: stats.max_streak || 0
+            max_streak: stats.max_streak || 0,
+            wrong_count: stats.wrong_count || 0
           },
           wrongCount: stats.wrong_count || 0
         })
-      }).catch(function (err) {
-        console.error('[Quiz] Failed to load stats:', err)
-        self.setData({ loading: false })
       })
-    })
+      .catch(function (err) {
+        console.error('[Quiz] Failed to load stats:', err)
+      })
   },
 
   _loadThemes: function () {
     var self = this
-    return auth.ensureLogin().then(function (loggedIn) {
-      if (!loggedIn) return
-      return api.get('/daily/themes').then(function (data) {
-        var themes = (data || []).map(function (t) {
-          return {
-            id: t.id,
-            theme_zh: t.theme_zh || '',
-            theme_en: t.theme_en || ''
-          }
+    return api.get('/quiz/themes')
+      .then(function (data) {
+        self.setData({
+          themes: (data || []).map(function (item) {
+            return {
+              content_id: parseInt(item.content_id, 10),
+              theme_zh: item.theme_zh || '',
+              theme_en: item.theme_en || '',
+              question_count: item.question_count || 0,
+              selected: false
+            }
+          })
         })
-        self.setData({ themes: themes })
-      }).catch(function (err) {
+      })
+      .catch(function (err) {
         console.error('[Quiz] Failed to load themes:', err)
       })
+  },
+
+  _goToQuizPlay: function (params) {
+    var query = Object.keys(params)
+      .filter(function (key) {
+        return params[key] !== undefined && params[key] !== null && params[key] !== ''
+      })
+      .map(function (key) {
+        return encodeURIComponent(key) + '=' + encodeURIComponent(params[key])
+      })
+      .join('&')
+
+    wx.navigateTo({
+      url: '/pages/quiz-play/quiz-play?' + query
     })
   },
 
-  // ========================
-  // Navigation
-  // ========================
-
-  /** ⚡ 闪电测验 */
   onStartLightning: function () {
-    wx.navigateTo({
-      url: '/pages/quiz-play/quiz-play?type=lightning&count=10&mode=timed'
+    this._goToQuizPlay({
+      mode: 'random',
+      questionCount: 10,
+      quizMode: 'timed'
     })
   },
 
-  /** 🧩 填空挑战 */
-  onStartFillBlank: function () {
-    wx.navigateTo({
-      url: '/pages/quiz-play/quiz-play?type=fill_blank&count=10&mode=normal'
-    })
-  },
-
-  /** 📝 主题测验 - open picker */
   onToggleThemePicker: function () {
+    var opening = !this.data.showThemePicker
+    var themes = this.data.themes
+    if (!opening) {
+      themes = themes.map(function (item) {
+        return Object.assign({}, item, { selected: false })
+      })
+    }
     this.setData({
-      showThemePicker: !this.data.showThemePicker,
-      selectedThemes: []
+      showThemePicker: opening,
+      selectedThemes: opening ? this.data.selectedThemes : [],
+      themes: themes
     })
   },
 
-  /** Theme selection toggle */
   onThemeSelect: function (e) {
-    var id = e.currentTarget.dataset.id
-    var selected = this.data.selectedThemes
+    var id = parseInt(e.currentTarget.dataset.id, 10)
+    var selected = this.data.selectedThemes.slice()
     var idx = selected.indexOf(id)
+
     if (idx === -1) {
       selected.push(id)
     } else {
       selected.splice(idx, 1)
     }
-    this.setData({ selectedThemes: selected })
+
+    var themes = this.data.themes.map(function (item) {
+      return Object.assign({}, item, {
+        selected: selected.indexOf(item.content_id) !== -1
+      })
+    })
+
+    this.setData({
+      selectedThemes: selected,
+      themes: themes
+    })
   },
 
-  /** Start theme quiz */
   onStartThemeQuiz: function () {
     var ids = this.data.selectedThemes
     if (ids.length === 0) {
       wx.showToast({ title: '请至少选择一个主题', icon: 'none' })
       return
     }
-    var contentId = ids.join(',')
-    wx.navigateTo({
-      url: '/pages/quiz-play/quiz-play?type=theme&count=10&contentId=' + contentId + '&mode=normal'
+
+    this._goToQuizPlay({
+      mode: 'theme',
+      questionCount: 10,
+      contentIds: ids.join(','),
+      quizMode: 'normal'
     })
   },
 
-  /** 🔄 错题回顾 */
   onStartWrongReview: function () {
     if (this.data.wrongCount === 0) {
       wx.showToast({ title: '暂无错题，继续加油！', icon: 'none' })
       return
     }
-    wx.navigateTo({
-      url: '/pages/quiz-play/quiz-play?type=wrong&count=' + Math.min(this.data.wrongCount, 20) + '&mode=normal'
+
+    this._goToQuizPlay({
+      mode: 'wrong_review',
+      questionCount: Math.min(this.data.wrongCount, 20),
+      quizMode: 'normal'
     })
   },
 
-  /** 📊 测验统计 - toggle panel */
   onToggleStats: function () {
     this.setData({ showStatsPanel: !this.data.showStatsPanel })
   }

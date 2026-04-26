@@ -182,6 +182,135 @@
   flex: 1;
 }
 
+/* ========== Calendar Popup ========== */
+.calendar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 900;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+.calendar-popup {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-card);
+  border-radius: 40rpx 40rpx 0 0;
+  z-index: 1000;
+  padding: var(--spacing-lg) var(--spacing-md) env(safe-area-inset-bottom);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -4rpx 30rpx rgba(0, 0, 0, 0.05);
+}
+
+.calendar-popup--show {
+  transform: translateY(0);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-md) var(--spacing-lg);
+}
+
+.calendar-nav {
+  font-size: 40rpx;
+  color: var(--color-primary);
+  padding: 10rpx 30rpx;
+  font-weight: 300;
+}
+
+.calendar-nav:active {
+  opacity: 0.5;
+}
+
+.calendar-title {
+  font-size: var(--font-size-h3);
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.calendar-weekdays {
+  display: flex;
+  margin-bottom: var(--spacing-md);
+}
+
+.calendar-weekday {
+  flex: 1;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
+}
+
+.calendar-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.calendar-day {
+  width: 14.28%;
+  height: 120rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 10rpx;
+  margin-bottom: var(--spacing-sm);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+}
+
+.calendar-day--empty {
+  visibility: hidden;
+}
+
+.calendar-day--disabled {
+  opacity: 0.3;
+}
+
+.calendar-day__num {
+  font-size: var(--font-size-h4);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 4rpx;
+}
+
+.calendar-day__theme {
+  font-size: 20rpx;
+  color: var(--color-primary);
+  text-align: center;
+  width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 2rpx 6rpx;
+  border-radius: 6rpx;
+}
+
+.calendar-day--today .calendar-day__num {
+  color: #fff;
+  background: var(--color-primary);
+  width: 48rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  text-align: center;
+  border-radius: 50%;
+  box-shadow: 0 4rpx 10rpx rgba(102, 126, 234, 0.3);
+}
+
+.calendar-day--selected {
+  background: rgba(102, 126, 234, 0.08);
+  border: 2rpx solid var(--color-primary);
+}
+
 .date-picker__time-slot {
   display: flex;
   background: var(--color-bg);
@@ -303,6 +432,105 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.push-card__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 10rpx;
+}
+
+.push-card__btn-group {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.push-card__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 16rpx 36rpx;
+  background: #ffffff;
+  border-radius: var(--radius-round);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  transition: opacity 0.2s;
+}
+
+.push-card__btn:active {
+  opacity: 0.8;
+}
+
+.push-card__btn--phrase {
+  color: #667eea;
+  font-weight: 600;
+  font-size: 28rpx;
+}
+
+.push-card__btn--word {
+  color: #764ba2;
+  font-weight: 600;
+  font-size: 28rpx;
+}
+
+.push-card__btn-detail {
+  display: inline-flex;
+  align-items: center;
+  padding: 8rpx 12rpx;
+  opacity: 0.9;
+}
+
+.push-card__btn-detail:active {
+  opacity: 0.6;
+}
+
+.tomorrow-tip {
+  margin: -8rpx var(--spacing-md) var(--spacing-lg);
+  padding: 24rpx;
+  background: #ffffff;
+  border: 1rpx solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 6rpx 18rpx rgba(102, 126, 234, 0.08);
+}
+
+.tomorrow-tip__label {
+  display: block;
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
+  margin-bottom: 14rpx;
+}
+
+.tomorrow-tip__main {
+  display: flex;
+  align-items: center;
+}
+
+.tomorrow-tip__emoji {
+  font-size: 40rpx;
+  margin-right: 18rpx;
+}
+
+.tomorrow-tip__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tomorrow-tip__title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.tomorrow-tip__subtitle {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
+}
+
+.push-card__btn-detail text {
+  font-size: 26rpx;
+  color: #ffffff;
+}
+
 .push-card__btn-text {
   font-size: var(--font-size-body);
   color: #ffffff;
@@ -374,33 +602,10 @@
   /* each phrase-card handles its own margin */
 }
 
-/* ---------- Words Scroll ---------- */
-.words-scroll {
-  width: 100%;
-  white-space: nowrap;
-  margin-bottom: var(--spacing-sm);
-}
-
-.words-scroll__inner {
-  display: inline-flex;
-  padding-right: var(--spacing-page);
-  gap: 24rpx;
-}
-
-.words-scroll__item {
-  width: 400rpx;
-  flex-shrink: 0;
-  display: inline-block;
-}
-
-.words-scroll__hint {
-  text-align: center;
-  padding: 8rpx 0;
-}
-
-.words-scroll__hint-text {
-  font-size: var(--font-size-small);
-  color: var(--color-text-hint);
+/* ---------- Words List ---------- */
+.words-list {
+  display: flex;
+  flex-direction: column;
 }
 
 /* ---------- Progress Section ---------- */

@@ -1,109 +1,108 @@
-/**
- * EasySpeak - Quiz Play Page (答题界面)
- * Handles quiz flow: generate → display → answer → submit → next → result
- */
-
 var api = require('../../utils/api')
 var auth = require('../../utils/auth')
+var navigation = require('../../utils/navigation')
 
-// Timer config for lightning mode
-var LIGHTNING_SECONDS = 180 // 3 minutes
+var LIGHTNING_SECONDS = 180
 var TIMER_INTERVAL = 1000
+
+function normalizeAnswer(text) {
+  return (text || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
 
 Page({
   data: {
-    // Loading
     loading: true,
     loadError: false,
     errorMsg: '',
 
-    // Quiz config (from page options)
-    quizType: 'lightning',   // lightning | theme | wrong
-    quizCount: 10,
-    quizMode: 'normal',      // timed | normal
-    contentId: '',
+    mode: 'random',
+    questionCount: 10,
+    quizMode: 'normal',
+    contentIds: '',
 
-    // Questions
     questions: [],
     currentIndex: 0,
     totalQuestions: 0,
 
-    // Current question
     question: null,
-    questionType: '',   // phrase_meaning | word_phonetic | fill_blank
-    questionText: '',
+    questionType: '',
+    interactionType: 'choice',
+    prompt: '',
+    placeholder: '',
 
-    // Options
-    options: [],        // [{key: 'A', text: '...', isCorrect: false}, ...]
+    options: [],
+    selectedKey: '',
+    inputAnswer: '',
+    canSubmit: false,
+    submitted: false,
+    isCorrect: false,
+    correctOptionText: '',
 
-    // User interaction
-    selectedKey: '',    // currently selected option key
-    submitted: false,   // whether answer was submitted
-    isCorrect: false,   // whether current answer is correct
-
-    // Timer (lightning mode)
     isTimed: false,
     timeRemaining: LIGHTNING_SECONDS,
     timerDisplay: '03:00',
     timerWarning: false,
 
-    // Results tracking
-    results: [],        // [{question, correctAnswer, userAnswer, isCorrect}, ...]
+    results: [],
     correctCount: 0
   },
 
   _timer: null,
+  _correctAudio: null,
+  _wrongAudio: null,
 
   onLoad: function (options) {
-    var type = options.type || 'lightning'
-    var count = parseInt(options.count) || 10
-    var contentId = options.contentId || ''
-    var mode = options.mode || 'normal'
-    var isTimed = mode === 'timed'
+    var mode = options.mode || 'random'
+    var questionCount = parseInt(options.questionCount, 10) || 10
+    var quizMode = options.quizMode || 'normal'
+    var contentIds = options.contentIds || ''
 
     this.setData({
-      quizType: type,
-      quizCount: count,
-      contentId: contentId,
-      quizMode: mode,
-      isTimed: isTimed,
-      timeRemaining: isTimed ? LIGHTNING_SECONDS : 0
+      mode: mode,
+      questionCount: questionCount,
+      quizMode: quizMode,
+      contentIds: contentIds,
+      isTimed: quizMode === 'timed',
+      timeRemaining: quizMode === 'timed' ? LIGHTNING_SECONDS : 0
     })
+
+    this._correctAudio = wx.createInnerAudioContext()
+    this._correctAudio.src = '/audio/correct.wav'
+    this._wrongAudio = wx.createInnerAudioContext()
+    this._wrongAudio.src = '/audio/wrong.wav'
 
     this._generateQuiz()
   },
 
   onUnload: function () {
     this._clearTimer()
+    if (this._correctAudio) { try { this._correctAudio.stop(); this._correctAudio.destroy() } catch (e) {} }
+    if (this._wrongAudio) { try { this._wrongAudio.stop(); this._wrongAudio.destroy() } catch (e) {} }
   },
 
   onHide: function () {
-    // Pause timer when page is hidden
     this._clearTimer()
   },
 
   onShow: function () {
-    // Resume timer if timed mode and quiz is active
     if (this.data.isTimed && this.data.questions.length > 0 && !this.data.submitted && this.data.currentIndex < this.data.totalQuestions) {
       this._startTimer()
     }
   },
-
-  // ========================
-  // Quiz Generation
-  // ========================
 
   _generateQuiz: function () {
     var self = this
     self.setData({ loading: true, loadError: false })
 
     var body = {
-      type: self.data.quizType,
-      count: self.data.quizCount
+      mode: self.data.mode,
+      question_count: self.data.questionCount
     }
 
-    if (self.data.contentId) {
-      body.content_id = self.data.contentId
+    if (self.data.contentIds) {
+      body.content_ids = self.data.contentIds.split(',').map(function (item) {
+        return parseInt(item, 10)
+      }).filter(Boolean)
     }
 
     auth.ensureLogin().then(function (loggedIn) {
@@ -119,20 +118,22 @@ Page({
       }
 
       var questions = self._processQuestions(data)
-      var firstQ = questions[0]
+      var firstQuestion = questions[0]
 
       self.setData({
         loading: false,
         questions: questions,
         totalQuestions: questions.length,
         currentIndex: 0,
-        question: firstQ,
-        questionType: firstQ.type,
-        questionText: firstQ.text,
-        options: firstQ.options
+        question: firstQuestion,
+        questionType: firstQuestion.questionType,
+        interactionType: firstQuestion.interactionType,
+        prompt: firstQuestion.prompt,
+        placeholder: firstQuestion.placeholder || '',
+        options: firstQuestion.options,
+        canSubmit: false
       })
 
-      // Start timer for lightning mode
       if (self.data.isTimed) {
         self._startTimer()
       }
@@ -147,31 +148,26 @@ Page({
   },
 
   _processQuestions: function (rawQuestions) {
-    return rawQuestions.map(function (q) {
-      var correctKey = q.answer || ''
-      var options = (q.options || []).map(function (opt) {
-        return {
-          key: opt.key || '',
-          text: opt.text || '',
-          isCorrect: opt.key === correctKey
-        }
-      })
-
+    return rawQuestions.map(function (item) {
       return {
-        id: q.question_id || q.id,
-        type: q.quiz_type || q.type || 'phrase_meaning',
-        text: q.question_text || q.question || q.text || '',
-        options: options,
-        correctAnswer: correctKey,
-        explanation: q.explanation || '',
-        hint: q.hint || ''
+        id: item.question_id,
+        questionType: item.question_type || '',
+        interactionType: item.interaction_type || 'choice',
+        prompt: item.prompt || '',
+        placeholder: item.placeholder || '',
+        options: (item.options || []).map(function (opt) {
+          return {
+            key: opt.key,
+            text: opt.text,
+            isAnswer: !!opt.is_answer
+          }
+        }),
+        acceptedAnswers: item.accepted_answers || [],
+        hint: item.hint || '',
+        itemType: item.item_type || ''
       }
     })
   },
-
-  // ========================
-  // Timer
-  // ========================
 
   _startTimer: function () {
     var self = this
@@ -183,12 +179,12 @@ Page({
         self._clearTimer()
         self._onTimeUp()
       }
+
       var mins = Math.floor(remaining / 60)
       var secs = remaining % 60
-      var display = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0')
       self.setData({
         timeRemaining: remaining,
-        timerDisplay: display,
+        timerDisplay: String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0'),
         timerWarning: remaining <= 30
       })
     }, TIMER_INTERVAL)
@@ -213,68 +209,107 @@ Page({
     })
   },
 
-  // ========================
-  // Answer Handling
-  // ========================
-
   onSelectOption: function (e) {
     if (this.data.submitted) return
-    var key = e.detail.key
-    // Pre-compute the correct option text for feedback display
-    var correctOpt = this.data.options.find(function (o) { return o.isCorrect })
+    var key = (e.detail && e.detail.key) || (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key) || ''
+    if (!key) return
     this.setData({
       selectedKey: key,
-      correctOptionText: correctOpt ? correctOpt.key + '. ' + correctOpt.text : ''
+      canSubmit: true
+    })
+  },
+
+  onInputAnswer: function (e) {
+    if (this.data.submitted) return
+    var inputAnswer = e.detail.value || ''
+    this.setData({
+      inputAnswer: inputAnswer,
+      canSubmit: !!inputAnswer.trim()
     })
   },
 
   onSubmitAnswer: function () {
-    if (this.data.submitted || !this.data.selectedKey) {
-      if (!this.data.selectedKey) {
-        wx.showToast({ title: '请先选择答案', icon: 'none' })
-      }
+    if (this.data.submitted) return
+
+    var question = this.data.question
+    var interactionType = this.data.interactionType
+    var selectedKey = this.data.selectedKey
+    var inputAnswer = this.data.inputAnswer
+
+    if (interactionType === 'choice' && !selectedKey) {
+      wx.showToast({ title: '请先选择答案', icon: 'none' })
       return
     }
 
-    var self = this
-    var selectedKey = self.data.selectedKey
-    var options = self.data.options
-    var correctOption = options.find(function (o) { return o.isCorrect })
-    var isCorrect = correctOption && correctOption.key === selectedKey
-
-    // Record result — store both key and full text for review
-    var selectedOption = options.find(function (o) { return o.key === selectedKey })
-    var correctKey = correctOption ? correctOption.key : ''
-    var correctText = correctOption ? correctOption.text : self.data.question.correctAnswer
-    var selectedText = selectedOption ? selectedOption.text : selectedKey
-
-    var result = {
-      question: self.data.questionText,
-      type: self.data.questionType,
-      options: options.map(function (o) { return { key: o.key, text: o.text, isCorrect: o.isCorrect } }),
-      correctAnswer: correctKey + '. ' + correctText,
-      userAnswer: selectedKey + '. ' + selectedText,
-      userAnswerKey: selectedKey,
-      isCorrect: isCorrect,
-      hint: self.data.question.hint || ''
+    if (interactionType === 'text_input' && !inputAnswer.trim()) {
+      wx.showToast({ title: '请先输入答案', icon: 'none' })
+      return
     }
 
-    var results = self.data.results.concat([result])
-    var correctCount = self.data.correctCount + (isCorrect ? 1 : 0)
+    var correctAnswerText = ''
+    var userAnswerText = ''
+    var isCorrect = false
 
-    self.setData({
+    if (interactionType === 'choice') {
+      var selectedOption = this.data.options.find(function (item) { return item.key === selectedKey })
+      var correctOption = this.data.options.find(function (item) { return item.isAnswer })
+      userAnswerText = selectedOption ? selectedOption.text : ''
+      correctAnswerText = correctOption ? correctOption.text : ''
+      isCorrect = !!correctOption && correctOption.key === selectedKey
+      correctAnswerText = correctOption ? correctOption.key + '. ' + correctOption.text : ''
+    } else {
+      userAnswerText = inputAnswer.trim()
+      correctAnswerText = question.acceptedAnswers[0] || ''
+      isCorrect = question.acceptedAnswers.some(function (answer) {
+        return normalizeAnswer(answer) === normalizeAnswer(userAnswerText)
+      })
+    }
+
+    var result = {
+      question: this.data.prompt,
+      type: this.data.questionType,
+      interactionType: interactionType,
+      options: this.data.options.map(function (item) {
+        return {
+          key: item.key,
+          text: item.text,
+          isCorrect: item.isAnswer
+        }
+      }),
+      correctAnswer: interactionType === 'choice'
+        ? correctAnswerText
+        : correctAnswerText,
+      userAnswer: interactionType === 'choice'
+        ? selectedKey + '. ' + userAnswerText
+        : userAnswerText,
+      userAnswerKey: selectedKey,
+      isCorrect: isCorrect,
+      hint: question.hint || ''
+    }
+
+    this.setData({
       submitted: true,
       isCorrect: isCorrect,
-      results: results,
-      correctCount: correctCount
+      canSubmit: false,
+      correctOptionText: correctAnswerText,
+      results: this.data.results.concat([result]),
+      correctCount: this.data.correctCount + (isCorrect ? 1 : 0)
     })
 
-    // Submit to backend
+    // Sound effect + haptic feedback
+    if (isCorrect) {
+      if (this._correctAudio) { this._correctAudio.stop(); this._correctAudio.play() }
+      wx.vibrateShort({ type: 'light' })
+    } else {
+      if (this._wrongAudio) { this._wrongAudio.stop(); this._wrongAudio.play() }
+      wx.vibrateShort({ type: 'heavy' })
+    }
+
     api.post('/quiz/submit', {
       answers: [{
-        question_id: self.data.question.id,
-        answer: selectedText,
-        quiz_type: self.data.questionType
+        question_id: question.id,
+        question_type: this.data.questionType,
+        answer: userAnswerText
       }]
     }).catch(function (err) {
       console.warn('[QuizPlay] Submit answer failed:', err)
@@ -285,63 +320,69 @@ Page({
     if (!this.data.submitted) return
 
     var nextIndex = this.data.currentIndex + 1
-
-    // Check if quiz is finished
     if (nextIndex >= this.data.totalQuestions) {
       this._clearTimer()
       this._finishQuiz()
       return
     }
 
-    var nextQ = this.data.questions[nextIndex]
+    var nextQuestion = this.data.questions[nextIndex]
     this.setData({
       currentIndex: nextIndex,
-      question: nextQ,
-      questionType: nextQ.type,
-      questionText: nextQ.text,
-      options: nextQ.options,
+      question: nextQuestion,
+      questionType: nextQuestion.questionType,
+      interactionType: nextQuestion.interactionType,
+      prompt: nextQuestion.prompt,
+      placeholder: nextQuestion.placeholder || '',
+      options: nextQuestion.options,
       selectedKey: '',
+      inputAnswer: '',
+      canSubmit: false,
       submitted: false,
-      isCorrect: false
+      isCorrect: false,
+      correctOptionText: ''
     })
   },
 
-  // ========================
-  // Quiz Finish
-  // ========================
-
   _finishQuiz: function () {
-    var results = this.data.results
-    var correctCount = this.data.correctCount
+    var results = this.data.results.slice()
     var totalQuestions = this.data.totalQuestions
 
-    // If we timed out mid-question, count unanswered as wrong
     if (results.length < totalQuestions) {
-      var remaining = totalQuestions - results.length
-      for (var i = 0; i < remaining; i++) {
-        var q = this.data.questions[results.length + i]
-        if (q) {
-          results.push({
-            question: q.text,
-            type: q.type,
-            options: q.options.map(function (o) { return { key: o.key, text: o.text, isCorrect: o.isCorrect } }),
-            correctAnswer: q.correctAnswer || '',
-            userAnswer: '未作答',
-            userAnswerKey: '',
-            isCorrect: false
-          })
-        }
+      for (var i = results.length; i < totalQuestions; i++) {
+        var question = this.data.questions[i]
+        var correctOption = question.options.find(function (item) { return item.isAnswer })
+        results.push({
+          question: question.prompt,
+          type: question.questionType,
+          interactionType: question.interactionType,
+          options: question.options.map(function (item) {
+            return {
+              key: item.key,
+              text: item.text,
+              isCorrect: item.isAnswer
+            }
+          }),
+          correctAnswer: question.interactionType === 'choice'
+            ? (correctOption ? correctOption.key + '. ' + correctOption.text : '')
+            : (question.acceptedAnswers[0] || ''),
+          userAnswer: '未作答',
+          userAnswerKey: '',
+          isCorrect: false,
+          hint: question.hint || ''
+        })
       }
-      totalQuestions = results.length
     }
 
-    // Store results in globalData for quiz-result page
     var app = getApp()
     app.globalData.quizResult = {
-      correct: correctCount,
+      correct: this.data.correctCount,
       total: totalQuestions,
       results: results,
-      quizType: this.data.quizType
+      mode: this.data.mode,
+      questionCount: this.data.questionCount,
+      quizMode: this.data.quizMode,
+      contentIds: this.data.contentIds
     }
 
     wx.redirectTo({
@@ -349,15 +390,14 @@ Page({
     })
   },
 
-  // ========================
-  // Retry on error
-  // ========================
-
   onRetry: function () {
     this._generateQuiz()
   },
 
   onBack: function () {
-    wx.navigateBack()
+    navigation.safeNavigateBack({
+      fallbackUrl: '/pages/quiz/quiz',
+      fallbackIsTab: true
+    })
   }
 })

@@ -35,46 +35,37 @@
     <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
   </view>
 
-  <!-- ========== Empty State ========== -->
-  <view class="empty-state" wx:if="{{isEmpty && !loading && !error}}">
-    <text class="empty-state__icon">📭</text>
-    <text class="empty-state__title">暂无内容</text>
-    <text class="empty-state__desc">{{currentDateDisplay}} {{currentWeekday}} {{timeSlot === 'morning' ? '晨间' : '晚间'}}推送尚未发布</text>
-    <text class="empty-state__hint">每日 9:00 和 18:00 更新</text>
-  </view>
-
-  <!-- ========== Main Content ========== -->
-  <block wx:if="{{!loading && !error && !isEmpty}}">
-
+  <!-- ========== Date Picker (Always Visible if not completely error/loading) ========== -->
+  <block wx:if="{{!loading && !error}}">
     <!-- 1. Date Picker -->
     <view class="date-picker card-flat">
       <view class="date-picker__nav" bindtap="onPrevDate">
         <text class="date-picker__arrow">‹</text>
       </view>
-      <view class="date-picker__center" bindtap="onBackToToday">
-        <view class="date-picker__time-slot">
-          <view class="time-slot-btn {{timeSlot === 'morning' ? 'time-slot-btn--active' : ''}}" 
-                data-slot="morning" bindtap="onTimeSlotChange">
-            <text class="time-slot-btn__icon">☀️</text>
-            <text class="time-slot-btn__text">晨间</text>
-          </view>
-          <view class="time-slot-btn {{timeSlot === 'evening' ? 'time-slot-btn--active' : ''}}" 
-                data-slot="evening" bindtap="onTimeSlotChange">
-            <text class="time-slot-btn__icon">🌙</text>
-            <text class="time-slot-btn__text">晚间</text>
-          </view>
-        </view>
+      <view class="date-picker__center" bindtap="onOpenCalendar">
         <text class="date-picker__date">{{currentDateDisplay}} {{currentWeekday}}</text>
+        <text class="date-picker__icon" style="margin-left: 8rpx; font-size: 24rpx; color: var(--color-primary);">📅</text>
       </view>
       <view class="date-picker__nav" bindtap="onNextDate">
         <text class="date-picker__arrow {{currentDate >= today ? 'date-picker__arrow--disabled' : ''}}">›</text>
       </view>
     </view>
 
+    <!-- ========== Empty State ========== -->
+    <view class="empty-state" wx:if="{{isEmpty}}">
+      <text class="empty-state__icon">📭</text>
+      <text class="empty-state__title">暂无内容</text>
+      <text class="empty-state__desc">{{currentDateDisplay}} {{currentWeekday}} 暂无推送内容</text>
+      <text class="empty-state__hint">内容每天更新，敬请期待</text>
+    </view>
+
+    <!-- ========== Main Content ========== -->
+    <block wx:if="{{!isEmpty}}">
+
     <!-- 2. Today's Push Card -->
     <view class="push-card card-gradient animate-fade-in">
       <view class="push-card__header">
-        <text class="push-card__emoji">{{timeSlot === 'morning' ? '☀️' : '🌙'}}</text>
+        <text class="push-card__emoji">📝</text>
         <view class="push-card__theme">
           <text class="push-card__theme-zh">{{content.theme_zh}}</text>
           <text class="push-card__theme-en">{{content.theme_en}}</text>
@@ -86,9 +77,34 @@
         <text class="push-card__stat-divider">·</text>
         <text class="push-card__stat">{{words.length}} 个单词</text>
       </view>
-      <view class="push-card__action" bindtap="onViewDetail">
+      <view class="push-card__actions" wx:if="{{isToday}}">
+        <view class="push-card__btn-group">
+          <view class="push-card__btn push-card__btn--phrase" bindtap="onStartLearnPhrase">
+            <text>📝 学短语</text>
+          </view>
+          <view class="push-card__btn push-card__btn--word" bindtap="onStartLearnWord">
+            <text>📚 学单词</text>
+          </view>
+        </view>
+        <view class="push-card__btn-detail" bindtap="onViewDetail">
+          <text>查看详情 →</text>
+        </view>
+      </view>
+
+      <view class="push-card__action" bindtap="onViewDetail" wx:else>
         <text class="push-card__btn-text">查看详情</text>
         <text class="push-card__btn-arrow">→</text>
+      </view>
+    </view>
+
+    <view class="tomorrow-tip animate-slide-up" wx:if="{{isToday && tomorrowTheme}}">
+      <text class="tomorrow-tip__label">明日主题</text>
+      <view class="tomorrow-tip__main">
+        <text class="tomorrow-tip__emoji">🔮</text>
+        <view class="tomorrow-tip__text">
+          <text class="tomorrow-tip__title">{{tomorrowTheme.theme_zh}}</text>
+          <text class="tomorrow-tip__subtitle">{{tomorrowDateDisplay}} {{tomorrowWeekday}} · {{tomorrowTheme.category_zh || tomorrowTheme.theme_en}}</text>
+        </view>
       </view>
     </view>
 
@@ -99,57 +115,40 @@
           <text class="section__icon">📝</text>
           <text class="section__title">今日短语速览</text>
         </view>
-        <view class="section__more" bindtap="onViewAllPhrases">
-          <text class="section__more-text">查看全部</text>
-          <text class="section__more-arrow">→</text>
-        </view>
       </view>
       <view class="phrases-list">
-        <view class="phrase-item" 
-              wx:for="{{phrases}}" 
-              wx:key="id"
-              data-id="{{item.id}}"
-              bindtap="onPhraseTap">
+        <view class="phrase-item"
+              wx:for="{{phrases}}"
+              wx:key="id">
           <phrase-card 
             phrase="{{item.phrase}}" 
             explanation="{{item.explanation}}"
-            examples="{{item.examples}}"
-            source="{{item.source}}"
-            timeSlot="{{timeSlot}}"
-            showDetail="{{false}}"
-            bind:toggle="onPhraseToggle">
+ examples="{{item.examples}}"
+ source="{{item.source}}"
+ showDetail="{{false}}"
+ bind:toggle="onPhraseToggle">
           </phrase-card>
         </view>
       </view>
     </view>
 
-    <!-- 4. Today's Words Preview -->
     <view class="section animate-slide-up" wx:if="{{words.length > 0}}" style="animation-delay: 0.1s">
       <view class="section__header">
         <view class="section__title-row">
           <text class="section__icon">📖</text>
-          <text class="section__title">今日单词预览</text>
-        </view>
-        <view class="section__more" bindtap="onViewAllWords">
-          <text class="section__more-text">查看全部</text>
-          <text class="section__more-arrow">→</text>
+          <text class="section__title">今日单词速览</text>
         </view>
       </view>
-      <scroll-view class="words-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-        <view class="words-scroll__inner">
-          <view class="words-scroll__item" wx:for="{{words}}" wx:key="id">
-            <word-card 
-              word="{{item.word}}" 
-              phonetic="{{item.phonetic}}"
-              partOfSpeech="{{item.partOfSpeech}}"
-              meaning="{{item.meaning}}"
-              example="{{item.example}}">
-            </word-card>
-          </view>
-        </view>
-      </scroll-view>
-      <view class="words-scroll__hint">
-        <text class="words-scroll__hint-text">← 左右滑动查看更多单词 →</text>
+      <view class="words-list">
+        <word-card
+          wx:for="{{words}}"
+          wx:key="id"
+          word="{{item.word}}"
+          phonetic="{{item.phonetic}}"
+          partOfSpeech="{{item.partOfSpeech}}"
+          meaning="{{item.meaning}}"
+          example="{{item.example}}">
+        </word-card>
       </view>
     </view>
 
@@ -216,6 +215,38 @@
     </view>
 
   </block>
+  </block>
+
+  <!-- ========== Calendar Popup ========== -->
+  <view class="calendar-backdrop" wx:if="{{showCalendar}}" catchtap="onCloseCalendar"></view>
+  <view class="calendar-popup {{showCalendar ? 'calendar-popup--show' : ''}}">
+    <view class="calendar-header">
+      <text class="calendar-nav" catchtap="onPrevMonth">‹</text>
+      <text class="calendar-title">{{calendarYear}}年{{calendarMonth}}月</text>
+      <text class="calendar-nav" catchtap="onNextMonth">›</text>
+    </view>
+    <view class="calendar-weekdays">
+      <text class="calendar-weekday">日</text>
+      <text class="calendar-weekday">一</text>
+      <text class="calendar-weekday">二</text>
+      <text class="calendar-weekday">三</text>
+      <text class="calendar-weekday">四</text>
+      <text class="calendar-weekday">五</text>
+      <text class="calendar-weekday">六</text>
+    </view>
+    <view class="calendar-grid">
+      <view class="calendar-day {{item.empty ? 'calendar-day--empty' : ''}} {{!item.empty && !item.hasContent ? 'calendar-day--disabled' : ''}} {{item.isToday ? 'calendar-day--today' : ''}} {{item.isSelected ? 'calendar-day--selected' : ''}}" 
+            wx:for="{{calendarDays}}" 
+            wx:key="index"
+            catchtap="onSelectCalendarDate"
+            data-date="{{item.dateStr}}"
+            data-has="{{item.hasContent}}"
+            data-empty="{{item.empty}}">
+        <view class="calendar-day__num" wx:if="{{!item.empty}}">{{item.day}}</view>
+        <view class="calendar-day__theme" wx:if="{{!item.empty && item.hasContent}}">{{item.theme_zh}}</view>
+      </view>
+    </view>
+  </view>
 
   <!-- Bottom safe area spacer -->
   <view class="safe-bottom" style="height: 120rpx;"></view>

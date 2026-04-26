@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = True
 
-    # Database
-    DATABASE_URL: str = "sqlite:///./easyspeak.db"
+    # Database (PostgreSQL required, configure in .env)
+    DATABASE_URL: str
 
     # Admin API Key (for content import from Hermes)
     ADMIN_API_KEY: str = "change-me-in-production"
@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     OBSIDIAN_DATA_PATH: str = os.path.expanduser(
         "~/Documents/obsidianFiles/koenigsegg/英语口语"
     )
+
+    # DeepSeek API (for generating quiz distractors)
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_API_URL: str = "https://api.deepseek.com/v1"
 
     class Config:
         env_file = ".env"

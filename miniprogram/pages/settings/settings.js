@@ -1,6 +1,7 @@
 // pages/settings/settings.js
 const storage = require('../../utils/storage')
 const auth = require('../../utils/auth')
+const navigation = require('../../utils/navigation')
 
 var DEFAULT_SETTINGS = {
   remindEnabled: true,
@@ -197,7 +198,10 @@ Page({
           wx.showToast({ title: '已退出登录', icon: 'success' })
           // Navigate back to profile
           setTimeout(function() {
-            wx.navigateBack()
+            navigation.safeNavigateBack({
+              fallbackUrl: '/pages/profile/profile',
+              fallbackIsTab: true
+            })
           }, 1000)
         }
       }

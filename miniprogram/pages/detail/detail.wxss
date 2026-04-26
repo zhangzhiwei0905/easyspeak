@@ -103,6 +103,7 @@
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
   color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   position: relative;
   overflow: hidden;
 }
@@ -283,15 +284,171 @@
   /* each phrase-card handles its own styling */
 }
 
-/* ---------- Words Grid ---------- */
-.words-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20rpx;
+/* ---------- Word List Link ---------- */
+.word-list-link {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 28rpx;
+  background: #ffffff;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
-.words-grid__item {
-  /* word-card handles its own sizing */
+.word-list-link:active {
+  background: #f5f5f5;
+}
+
+.word-list-link__icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.word-list-link__text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.word-list-link__arrow {
+  font-size: 36rpx;
+  color: #ccc;
+  font-weight: 300;
+}
+
+/* ---------- Words List (single column, expandable) ---------- */
+.words-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.word-item {
+  background: #ffffff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.word-item__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx;
+}
+
+.word-item:active .word-item__header {
+  background: #fafafa;
+}
+
+.word-item__word-info {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  flex: 1;
+}
+
+.word-item__word {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.word-item__phonetic {
+  font-size: 24rpx;
+  color: #888;
+  font-style: italic;
+}
+
+.word-item__accents {
+  display: flex;
+  gap: 12rpx;
+  margin-left: 12rpx;
+}
+
+.word-item__accent {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 8rpx;
+  background: #f5f6fa;
+}
+
+.word-item__accent:active {
+  background: #e8eaff;
+}
+
+.word-item__accent-icon {
+  font-size: 22rpx;
+}
+
+.word-item__accent-label {
+  font-size: 20rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.word-item__arrow {
+  font-size: 28rpx;
+  color: #bbb;
+  transition: transform 0.3s ease;
+}
+
+.word-item__arrow--expanded {
+  transform: rotate(180deg);
+}
+
+.word-item__body {
+  padding: 0 28rpx 28rpx 28rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.word-item__detail-section {
+  margin-bottom: 16rpx;
+}
+
+.word-item__detail-section:first-child {
+  padding-top: 24rpx;
+}
+
+.word-item__detail-section {
+  margin-bottom: 16rpx;
+}
+
+.word-item__detail-label {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+  letter-spacing: 2rpx;
+}
+
+.word-item__detail-pos {
+  display: block;
+  font-size: 28rpx;
+  color: #667eea;
+  font-style: italic;
+}
+
+.word-item__detail-meaning {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.5;
+}
+
+.word-item__detail-example {
+  display: block;
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.6;
+  font-style: italic;
+  background: #f8f9fc;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  border-left: 4rpx solid #667eea;
 }
 
 /* ---------- List End Hint ---------- */
@@ -330,47 +487,54 @@
   z-index: 100;
 }
 
-.start-study-btn {
+.learn-entry-bar {
+  display: flex;
+  gap: 20rpx;
+  width: 100%;
+}
+
+.learn-entry-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  gap: 10rpx;
   height: 96rpx;
-  border-radius: var(--radius-round);
+  border-radius: var(--radius-round, 48rpx);
   border: none;
-  font-size: var(--font-size-title);
+  font-size: 30rpx;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.35);
   transition: all 0.3s ease;
   line-height: 1;
 }
 
-.start-study-btn::after {
-  border: none;
+.learn-entry-btn:active {
+  transform: scale(0.97);
 }
 
-.start-study-btn:active {
-  transform: scale(0.98);
-  box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.25);
+.learn-entry-btn--phrase {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 8rpx 20rpx rgba(102, 126, 234, 0.3);
 }
 
-.start-study-btn[disabled] {
-  opacity: 1;
+.learn-entry-btn--word {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 8rpx 20rpx rgba(79, 172, 254, 0.3);
 }
 
-.start-study-btn--done {
-  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
-  box-shadow: 0 8rpx 24rpx rgba(82, 196, 26, 0.3);
+.learn-entry-btn--done {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%) !important;
+  box-shadow: 0 8rpx 20rpx rgba(82, 196, 26, 0.25) !important;
 }
 
-.start-study-btn__icon {
-  font-size: 36rpx;
-  margin-right: 12rpx;
+.learn-entry-btn__icon {
+  font-size: 34rpx;
 }
 
-.start-study-btn__text {
-  font-size: var(--font-size-title);
+.learn-entry-btn__text {
+  font-size: 30rpx;
   color: #ffffff;
+  font-weight: 600;
 }
+

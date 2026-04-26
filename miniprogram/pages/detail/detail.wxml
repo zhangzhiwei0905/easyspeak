@@ -31,15 +31,15 @@
   <!-- ========== Main Content ========== -->
   <block wx:if="{{!loading && !error}}">
 
-    <!-- 1. Theme Header with Gradient -->
-    <view class="detail-header {{timeSlot === 'evening' ? 'detail-header--evening' : 'detail-header--morning'}}">
-      <view class="detail-header__top">
-        <text class="detail-header__icon">{{timeSlotIcon}}</text>
-        <view class="detail-header__info">
-          <text class="detail-header__slot">{{timeSlotLabel}}</text>
-          <text class="detail-header__date">{{dateDisplay}} {{weekday}}</text>
-        </view>
-      </view>
+ <!-- 1. Theme Header with Gradient -->
+ <view class="detail-header">
+ <view class="detail-header__top">
+ <text class="detail-header__icon">📖</text>
+ <view class="detail-header__info">
+ <text class="detail-header__slot">{{categoryZh || '每日推送'}}</text>
+ <text class="detail-header__date">{{dateDisplay}} {{weekday}}</text>
+ </view>
+ </view>
       <view class="detail-header__theme">
         <text class="detail-header__theme-zh">{{themeZh}}</text>
         <text class="detail-header__theme-en">{{themeEn}}</text>
@@ -98,16 +98,16 @@
           <view class="phrase-wrapper" 
                 wx:for="{{phrases}}" 
                 wx:key="id"
+                id="phrase-{{item.id}}"
                 data-index="{{index}}"
                 bindtap="onPhraseToggle">
-            <phrase-card 
-              phrase="{{item.phrase}}" 
-              explanation="{{item.explanation}}"
-              examples="{{item.examples}}"
-              source="{{item.source}}"
-              timeSlot="{{timeSlot}}"
-              showDetail="{{expandedPhraseIndex === index}}">
-            </phrase-card>
+ <phrase-card 
+ phrase="{{item.phrase}}" 
+ explanation="{{item.explanation}}"
+ examples="{{item.examples}}"
+ source="{{item.source}}"
+ showDetail="{{expandedPhraseIndex === index}}">
+ </phrase-card>
           </view>
         </view>
         <view class="list-end-hint" wx:if="{{phrases.length > 0}}">
@@ -118,21 +118,48 @@
         </view>
       </view>
 
-      <!-- Words Grid -->
+      <!-- Words List -->
       <view class="tab-content" wx:if="{{activeTab === 'words'}}">
-        <view class="words-grid">
-          <view class="words-grid__item" 
-                wx:for="{{words}}" 
+        <view class="words-list">
+          <view class="word-item"
+                wx:for="{{words}}"
                 wx:key="id"
-                data-word="{{item.word}}"
-                bindtap="onWordTap">
-            <word-card 
-              word="{{item.word}}" 
-              phonetic="{{item.phonetic}}"
-              partOfSpeech="{{item.partOfSpeech}}"
-              meaning="{{item.meaning}}"
-              example="{{item.example}}">
-            </word-card>
+                id="word-{{item.id}}"
+                data-index="{{index}}"
+                bindtap="onWordToggle">
+            <!-- Collapsed: word + phonetic + arrow -->
+            <view class="word-item__header">
+              <view class="word-item__word-info">
+                <text class="word-item__word">{{item.word}}</text>
+                <text class="word-item__phonetic">{{item.phonetic}}</text>
+                <view class="word-item__accents">
+                  <view class="word-item__accent" catchtap="onWordPlay" data-word="{{item.word}}" data-type="1">
+                    <text class="word-item__accent-icon">🇬🇧</text>
+                    <text class="word-item__accent-label">英</text>
+                  </view>
+                  <view class="word-item__accent" catchtap="onWordPlay" data-word="{{item.word}}" data-type="2">
+                    <text class="word-item__accent-icon">🇺🇸</text>
+                    <text class="word-item__accent-label">美</text>
+                  </view>
+                </view>
+              </view>
+              <text class="word-item__arrow {{expandedWordIndex === index ? 'word-item__arrow--expanded' : ''}}">∨</text>
+            </view>
+            <!-- Expanded: word details -->
+            <view class="word-item__body" wx:if="{{expandedWordIndex === index}}">
+              <view class="word-item__detail-section" wx:if="{{item.partOfSpeech}}">
+                <text class="word-item__detail-label">词性</text>
+                <text class="word-item__detail-pos">{{item.partOfSpeech}}</text>
+              </view>
+              <view class="word-item__detail-section">
+                <text class="word-item__detail-label">释义</text>
+                <text class="word-item__detail-meaning">{{item.meaning}}</text>
+              </view>
+              <view class="word-item__detail-section" wx:if="{{item.example}}">
+                <text class="word-item__detail-label">例句</text>
+                <text class="word-item__detail-example">{{item.example}}</text>
+              </view>
+            </view>
           </view>
         </view>
         <view class="list-end-hint" wx:if="{{words.length > 0}}">
@@ -148,22 +175,31 @@
     <view style="height: 180rpx;"></view>
   </block>
 
-  <!-- 5. Fixed Bottom Button -->
-  <view class="bottom-bar safe-bottom" wx:if="{{!loading && !error}}">
-    <button class="start-study-btn {{hasStudied ? 'start-study-btn--done' : ''}}"
-            bindtap="onStartStudy"
-            disabled="{{hasStudied || studying}}">
-      <block wx:if="{{hasStudied}}">
-        <text class="start-study-btn__icon">✅</text>
-        <text class="start-study-btn__text">今日已学习</text>
-      </block>
-      <block wx:elif="{{studying}}">
-        <text class="start-study-btn__text">记录中...</text>
-      </block>
-      <block wx:else>
-        <text class="start-study-btn__icon">🚀</text>
-        <text class="start-study-btn__text">开始学习</text>
-      </block>
-    </button>
+  <!-- 5. Fixed Bottom Bar — Dual Learning Entry -->
+  <view class="bottom-bar safe-bottom" wx:if="{{!loading && !error && isToday}}">
+    <view class="learn-entry-bar">
+      <view class="learn-entry-btn learn-entry-btn--phrase {{phraseStudied ? 'learn-entry-btn--done' : ''}}"
+            bindtap="onStartLearnPhrase">
+        <block wx:if="{{phraseStudied}}">
+          <text class="learn-entry-btn__icon">✅</text>
+          <text class="learn-entry-btn__text">短语已学</text>
+        </block>
+        <block wx:else>
+          <text class="learn-entry-btn__icon">📝</text>
+          <text class="learn-entry-btn__text">学短语</text>
+        </block>
+      </view>
+      <view class="learn-entry-btn learn-entry-btn--word {{wordStudied ? 'learn-entry-btn--done' : ''}}"
+            bindtap="onStartLearnWord">
+        <block wx:if="{{wordStudied}}">
+          <text class="learn-entry-btn__icon">✅</text>
+          <text class="learn-entry-btn__text">单词已学</text>
+        </block>
+        <block wx:else>
+          <text class="learn-entry-btn__icon">📚</text>
+          <text class="learn-entry-btn__text">学单词</text>
+        </block>
+      </view>
+    </view>
   </view>
 </view>

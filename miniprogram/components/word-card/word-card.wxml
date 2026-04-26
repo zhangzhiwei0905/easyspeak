@@ -1,31 +1,23 @@
-<view class="word-card" bindtap="onTapCard">
-  <view class="word-card__inner {{flipped ? 'word-card__inner--flipped' : ''}}">
-    <!-- Front face -->
-    <view class="word-card__face word-card__face--front">
-      <view class="word-card__front-content">
-        <text class="word-card__word">{{word}}</text>
-        <text class="word-card__phonetic">{{phonetic}}</text>
-        <text class="word-card__tap-hint">点击翻转查看释义 →</text>
-      </view>
+<view class="word-row {{expanded ? 'word-row--expanded' : ''}}" bindtap="onTapCard">
+  <!-- 收起状态：一行展示 -->
+  <view class="word-row__main">
+    <view class="word-row__left">
+      <text class="word-row__word">{{word}}</text>
+      <text class="word-row__pos" wx:if="{{partOfSpeech}}">{{partOfSpeech}}</text>
     </view>
+    <view class="word-row__right">
+      <text class="word-row__meaning">{{meaning}}</text>
+      <text class="word-row__arrow {{expanded ? 'word-row__arrow--up' : ''}}">▼</text>
+    </view>
+  </view>
 
-    <!-- Back face -->
-    <view class="word-card__face word-card__face--back">
-      <view class="word-card__back-content">
-        <view class="word-card__back-header">
-          <text class="word-card__back-word">{{word}}</text>
-          <text class="word-card__pos" wx:if="{{partOfSpeech}}">{{partOfSpeech}}</text>
-        </view>
-        <view class="word-card__meaning-section">
-          <text class="word-card__meaning-label">释义</text>
-          <text class="word-card__meaning">{{meaning}}</text>
-        </view>
-        <view class="word-card__example-section" wx:if="{{example}}">
-          <text class="word-card__example-label">例句</text>
-          <text class="word-card__example">{{example}}</text>
-        </view>
-        <text class="word-card__tap-hint">点击翻回正面 →</text>
-      </view>
+  <!-- 展开状态：显示音标 + 例句 -->
+  <view class="word-row__detail" wx:if="{{expanded}}">
+    <text class="word-row__phonetic" wx:if="{{phonetic}}">{{phonetic}}</text>
+    <view class="word-row__divider"></view>
+    <view class="word-row__example-block" wx:if="{{example}}">
+      <text class="word-row__example-label">例句</text>
+      <text class="word-row__example">{{example}}</text>
     </view>
   </view>
 </view>

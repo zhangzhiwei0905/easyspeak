@@ -10,6 +10,7 @@ class Phrase(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     content_id = Column(Integer, ForeignKey("daily_content.id"), nullable=False, index=True)
     phrase = Column(String(200), nullable=False)
+    meaning = Column(String(200))
     explanation = Column(Text, nullable=False)
     example_1 = Column(Text)
     example_1_cn = Column(Text)

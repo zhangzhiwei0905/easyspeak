@@ -1,12 +1,27 @@
 /**
  * EasySpeak - Library Page (内容库)
- * Browse all historical daily push content with search, filter, and pagination.
+ * Browse all historical daily push content with search and pagination.
  */
 
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const SEARCH_HISTORY_KEY = 'easyspeak_search_history'
+const MAX_HISTORY = 10
+const CATEGORY_FILTERS = [
+  { key: '', label: '全部' },
+  { key: 'life', label: '生活场景' },
+  { key: 'travel', label: '旅行出行' },
+  { key: 'work', label: '职场商务' },
+  { key: 'social', label: '社交关系' },
+  { key: 'shopping', label: '购物消费' },
+  { key: 'health', label: '医疗健康' },
+  { key: 'education', label: '学习教育' },
+  { key: 'communication', label: '电话邮件' },
+  { key: 'emergency', label: '紧急情况' },
+  { key: 'entertainment', label: '文化娱乐' }
+]
 
 function formatDateDisplay(dateStr) {
   if (!dateStr) return ''
@@ -25,46 +40,35 @@ function getDateLabel(dateStr) {
   return formatDateDisplay(dateStr) + ' ' + getWeekday(dateStr)
 }
 
-/**
- * Group items by date string.
- * Input: [{..., date: '2026-04-15'}, ...]
- * Output: [{ date: '2026-04-15', label: '4月15日 周二', items: [...] }, ...]
- */
 function groupByDate(items) {
   var groups = []
   var groupMap = {}
-
   items.forEach(function (item) {
     var date = item.date || ''
     if (!groupMap[date]) {
-      var group = {
-        date: date,
-        label: getDateLabel(date),
-        items: []
-      }
+      var group = { date: date, label: getDateLabel(date), items: [] }
       groupMap[date] = group
       groups.push(group)
     }
     groupMap[date].items.push(item)
   })
-
   return groups
 }
 
 Page({
   data: {
     // Search
-    searchPlaceholder: '搜索短语/单词/主题...',
+    searchFocused: false,
+    searchActive: false,
+    searchKeyword: '',
+    searchHistory: [],
+    searchThemes: [],
+    searchPhrases: [],
+    searchWords: [],
+    searchDone: false,
+    categoryFilters: CATEGORY_FILTERS,
+    selectedCategory: '',
 
-    // Filter tabs
-    filterTabs: [
-      { key: 'all', label: '全部' },
-      { key: 'morning', label: '☀️ 生活场景' },
-      { key: 'evening', label: '🌙 休闲话题' }
-    ],
-    activeFilter: 'all',
-
-    // Loading states
     loading: true,
     refreshing: false,
     loadingMore: false,
@@ -86,12 +90,13 @@ Page({
     errorMsg: ''
   },
 
-  onLoad: function () {
-    this._loadData()
-  },
+  _searchTimer: null,
 
-  onShow: function () {
-    // Refresh data when page becomes visible (e.g., back from detail)
+  onLoad: function () {
+    // Load search history
+    var history = wx.getStorageSync(SEARCH_HISTORY_KEY) || []
+    this.setData({ searchHistory: history })
+    this._loadData()
   },
 
   onPullDownRefresh: function () {
@@ -115,13 +120,6 @@ Page({
     this._loadMore()
   },
 
-  onShareAppMessage: function () {
-    return {
-      title: 'EasySpeak · 内容库',
-      path: '/pages/library/library'
-    }
-  },
-
   // ========================
   // Data Loading
   // ========================
@@ -142,52 +140,35 @@ Page({
 
   _fetchPage: function (page) {
     var self = this
-    var params = {
-      page: page,
-      size: self.data.pageSize
-    }
-
-    // Add filter
-    var filter = self.data.activeFilter
-    if (filter !== 'all') {
-      params.time_slot = filter
+    var params = { page: page, size: self.data.pageSize }
+    if (self.data.selectedCategory) {
+      params.category = self.data.selectedCategory
     }
 
     return api.get('/daily/list', params)
       .then(function (data) {
-        console.log('[Library] API response page', page, ':', data)
-
-        // API might return { items: [...], total: N, page: N, size: N }
-        // or { items: [...], has_more: bool }
         var items = data.items || data.data || data.results || []
         var total = data.total || 0
         var hasMore = data.has_more !== undefined
           ? data.has_more
           : (page * self.data.pageSize < total)
 
-        // Normalize each item
-        var normalizedItems = items.map(function (item) {
-          return {
-            id: item.id,
-            date: item.date || '',
-            timeSlot: item.time_slot || 'morning',
-            themeZh: item.theme_zh || '',
-            themeEn: item.theme_en || '',
-            phraseCount: item.phrase_count || item.phrases_count || 5,
-            wordCount: item.word_count || item.words_count || 20,
-            studied: !!(item.studied || item.has_studied),
-            mastery: item.mastery || item.mastery_level || 0
-          }
-        })
+ var normalizedItems = items.map(function (item) {
+ return {
+ id: item.id,
+ date: item.date || '',
+ themeZh: item.theme_zh || '',
+ themeEn: item.theme_en || '',
+ category: item.category || '',
+ categoryZh: item.category_zh || '',
+ phraseCount: item.phrase_count || item.phrases_count || 0,
+ wordCount: item.word_count || item.words_count || 0,
+ studied: !!(item.studied || item.has_studied),
+ mastery: item.mastery || item.mastery_level || 0
+ }
+ })
 
-        // Merge with existing items or replace
-        var rawItems
-        if (page === 1) {
-          rawItems = normalizedItems
-        } else {
-          rawItems = self.data.rawItems.concat(normalizedItems)
-        }
-
+        var rawItems = page === 1 ? normalizedItems : self.data.rawItems.concat(normalizedItems)
         var dateGroups = groupByDate(rawItems)
 
         self.setData({
@@ -223,31 +204,181 @@ Page({
   },
 
   // ========================
-  // Event Handlers
+  // Search
   // ========================
 
   onSearchFocus: function () {
-    wx.navigateTo({
-      url: '/pages/search/search'
+    this.setData({ searchFocused: true, searchActive: true })
+  },
+
+  onSearchBlur: function () {
+    this.setData({ searchFocused: false })
+  },
+
+  onSearchInput: function (e) {
+    var keyword = e.detail.value || ''
+    this.setData({ searchKeyword: keyword, searchDone: false })
+
+    // Debounce: search after 400ms of no typing
+    if (this._searchTimer) clearTimeout(this._searchTimer)
+    if (!keyword.trim()) {
+      this.setData({ searchThemes: [], searchPhrases: [], searchWords: [], searchDone: false })
+      return
+    }
+    var self = this
+    this._searchTimer = setTimeout(function () {
+      self._doSearch(keyword.trim())
+    }, 400)
+  },
+
+  onSearchConfirm: function (e) {
+    var keyword = (e.detail.value || '').trim()
+    if (!keyword) return
+    this._saveHistory(keyword)
+    this._doSearch(keyword)
+  },
+
+  onSearchClear: function () {
+    this.setData({
+      searchKeyword: '',
+      searchThemes: [],
+      searchPhrases: [],
+      searchWords: [],
+      searchDone: false,
+      searchFocused: true, // keep focus on clear
+      searchActive: true
     })
   },
 
-  onFilterChange: function (e) {
-    var filter = e.currentTarget.dataset.filter
-    if (filter === this.data.activeFilter) return
+  onSearchCancel: function () {
     this.setData({
-      activeFilter: filter
+      searchKeyword: '',
+      searchThemes: [],
+      searchPhrases: [],
+      searchWords: [],
+      searchDone: false,
+      searchFocused: false, // exit search mode
+      searchActive: false
     })
-    // Reload data with new filter
-    this._loadData()
   },
+
+  onCategoryTap: function (e) {
+    var category = e.currentTarget.dataset.category || ''
+    this.setData({
+      selectedCategory: category,
+      page: 1,
+      hasMore: true,
+      rawItems: [],
+      dateGroups: []
+    })
+    this._loadData()
+    var keyword = (this.data.searchKeyword || '').trim()
+    if (keyword) {
+      this._doSearch(keyword)
+    }
+  },
+
+  onHistoryTap: function (e) {
+    var keyword = e.currentTarget.dataset.keyword
+    this.setData({ searchKeyword: keyword })
+    this._saveHistory(keyword)
+    this._doSearch(keyword)
+  },
+
+  onClearHistory: function () {
+    wx.removeStorageSync(SEARCH_HISTORY_KEY)
+    this.setData({ searchHistory: [] })
+  },
+
+  onSearchResultTap: function (e) {
+    var id = e.currentTarget.dataset.id
+    var targetId = e.currentTarget.dataset.targetId
+    var type = e.currentTarget.dataset.type
+    
+    // Save history if user clicks a result directly from auto-search
+    var keyword = (this.data.searchKeyword || '').trim()
+    if (keyword) {
+      this._saveHistory(keyword)
+    }
+
+    if (id) {
+      var url = '/pages/detail/detail?id=' + id
+      if (targetId && type) {
+        url += '&targetType=' + type + '&targetId=' + targetId
+      }
+      wx.navigateTo({ url: url })
+    }
+  },
+
+  _doSearch: function (keyword) {
+    var self = this
+    self.setData({ searchDone: false })
+    var params = { q: keyword }
+    if (self.data.selectedCategory) {
+      params.category = self.data.selectedCategory
+    }
+    api.get('/daily/search', params)
+      .then(function (data) {
+        var themes = (data.themes || []).map(function (t) {
+          return {
+            id: t.id,
+            themeZh: t.theme_zh || t.themeZh || '',
+            themeEn: t.theme_en || t.themeEn || '',
+            date: t.date || '',
+            contentId: t.content_id || t.contentId
+          }
+        })
+        var phrases = (data.phrases || []).map(function (p) {
+          return {
+            id: p.id,
+            phrase: p.phrase,
+            meaning: p.meaning || '',
+            theme: p.theme || '',
+            date: p.date || '',
+            contentId: p.content_id || p.contentId
+          }
+        })
+        var words = (data.words || []).map(function (w) {
+          return {
+            id: w.id,
+            word: w.word,
+            meaning: w.meaning || '',
+            theme: w.theme || '',
+            date: w.date || '',
+            contentId: w.content_id || w.contentId
+          }
+        })
+        self.setData({
+          searchThemes: themes,
+          searchPhrases: phrases,
+          searchWords: words,
+          searchDone: true
+        })
+      })
+      .catch(function (err) {
+        console.error('[Library] Search failed:', err)
+        self.setData({ searchDone: true, searchThemes: [], searchPhrases: [], searchWords: [] })
+      })
+  },
+
+  _saveHistory: function (keyword) {
+    var history = this.data.searchHistory.slice()
+    var idx = history.indexOf(keyword)
+    if (idx > -1) history.splice(idx, 1)
+    history.unshift(keyword)
+    if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY)
+    this.setData({ searchHistory: history })
+    wx.setStorageSync(SEARCH_HISTORY_KEY, history)
+  },
+
+  // ========================
+  // Other Events
+  // ========================
 
   onContentTap: function (e) {
     var id = e.currentTarget.dataset.id
     if (id) {
-      wx.navigateTo({
-        url: '/pages/detail/detail?id=' + id
-      })
+      wx.navigateTo({ url: '/pages/detail/detail?id=' + id })
     }
   },
 

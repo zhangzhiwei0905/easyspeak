@@ -50,3 +50,4 @@ english_history.json
 # --- Logs ---
 *.log
 logs/
+.omx/

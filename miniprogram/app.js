@@ -3,12 +3,19 @@ const storage = require('./utils/storage')
 
 App({
   globalData: {
-    baseUrl: 'http://localhost:8000/api/v1',
+    // 本地开发: http://localhost:8000/api/v1
+    // 服务器部署: https://你的域名/api/v1
+    baseUrl: 'https://easyspeak.amazingzz.xyz/api/v1',
     userInfo: null,
     systemInfo: null
   },
 
   onLaunch() {
+    // Ensure iOS plays audio even in silent mode
+    if (wx.setInnerAudioOption) {
+      wx.setInnerAudioOption({ obeyMuteSwitch: false })
+    }
+
     // Get system info
     const systemInfo = wx.getSystemInfoSync()
     this.globalData.systemInfo = systemInfo

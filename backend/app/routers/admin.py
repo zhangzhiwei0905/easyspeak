@@ -1,12 +1,12 @@
 """Admin API - content import (called by Hermes cron)."""
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, timedelta
 from app.database import get_db
 from app.models.daily import DailyContent
 from app.models.phrase import Phrase
 from app.models.word import Word
-from app.schemas.daily import ContentImport
+from app.schemas.daily import ContentImport, ContentImportBatch
 from app.config import get_settings
 
 router = APIRouter()
@@ -20,50 +20,44 @@ def verify_admin(api_key: str = Header(..., alias="X-API-Key")) -> str:
     return api_key
 
 
-@router.post("/content/import")
-async def import_content(
-    data: ContentImport,
-    db: Session = Depends(get_db),
-    _: str = Depends(verify_admin),
-):
-    """
-    Import daily content from Hermes cron job.
-    Upserts by (date, time_slot).
-    """
-    # Check if exists
+def _upsert_content(db: Session, data: ContentImport):
+    """Create or update one daily content payload by date."""
     existing = (
         db.query(DailyContent)
-        .filter(DailyContent.date == data.date, DailyContent.time_slot == data.time_slot)
+        .filter(DailyContent.date == data.date)
         .first()
     )
 
     if existing:
-        # Update existing
         existing.theme_zh = data.theme_zh
         existing.theme_en = data.theme_en
+        existing.category = data.category
+        existing.category_zh = data.category_zh
         existing.introduction = data.introduction
         existing.practice_tips = data.practice_tips
-        # Delete old phrases and words
+        existing.status = data.status or "scheduled"
         db.query(Phrase).filter(Phrase.content_id == existing.id).delete()
         db.query(Word).filter(Word.content_id == existing.id).delete()
         content = existing
     else:
         content = DailyContent(
             date=data.date,
-            time_slot=data.time_slot,
             theme_zh=data.theme_zh,
             theme_en=data.theme_en,
+            category=data.category,
+            category_zh=data.category_zh,
             introduction=data.introduction,
             practice_tips=data.practice_tips,
+            status=data.status or "scheduled",
         )
         db.add(content)
-        db.flush()  # get content.id
+        db.flush()
 
-    # Add phrases
     for i, p in enumerate(data.phrases):
         phrase = Phrase(
             content_id=content.id,
             phrase=p.phrase,
+            meaning=p.meaning,
             explanation=p.explanation,
             example_1=p.examples[0].en if len(p.examples) > 0 else None,
             example_1_cn=p.examples[0].cn if len(p.examples) > 0 else None,
@@ -76,7 +70,6 @@ async def import_content(
         )
         db.add(phrase)
 
-    # Add words
     for i, w in enumerate(data.words):
         word = Word(
             content_id=content.id,
@@ -90,14 +83,122 @@ async def import_content(
         db.add(word)
 
     db.commit()
+    db.refresh(content)
 
     return {
         "status": "ok",
         "content_id": content.id,
         "date": str(data.date),
-        "time_slot": data.time_slot,
+        "category": data.category,
         "phrases": len(data.phrases),
         "words": len(data.words),
+    }
+
+
+@router.post("/content/import")
+async def import_content(
+    data: ContentImport,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin),
+):
+    """Import daily content from Hermes cron job. Upserts by date."""
+    return _upsert_content(db, data)
+
+
+@router.post("/content/import-batch")
+async def import_content_batch(
+    payload: ContentImportBatch,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin),
+):
+    """Batch import pre-generated daily content. Each item upserts by date."""
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="items cannot be empty")
+
+    results = []
+    success = 0
+    failed = 0
+    for item in payload.items:
+        try:
+            result = _upsert_content(db, item)
+            success += 1
+            results.append({
+                "date": str(item.date),
+                "category": item.category,
+                "status": "ok",
+                "content_id": result["content_id"],
+            })
+        except Exception as exc:
+            db.rollback()
+            failed += 1
+            results.append({
+                "date": str(item.date),
+                "category": item.category,
+                "status": "failed",
+                "error": str(exc),
+            })
+
+    return {
+        "status": "ok" if failed == 0 else "partial",
+        "batch_id": payload.batch_id,
+        "total": len(payload.items),
+        "success": success,
+        "failed": failed,
+        "items": results,
+    }
+
+
+@router.get("/content/inventory")
+async def content_inventory(
+    from_date: date = Query(None, alias="from"),
+    days: int = Query(14, ge=1, le=90),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_admin),
+):
+    """Check future dated content stock for the requested date range."""
+    start = from_date or date.today()
+    expected_dates = [start + timedelta(days=i) for i in range(days)]
+    end = expected_dates[-1]
+
+    contents = (
+        db.query(DailyContent)
+        .filter(
+            DailyContent.date >= start,
+            DailyContent.date <= end,
+        )
+        .order_by(DailyContent.date.asc())
+        .all()
+    )
+    by_date = {c.date: c for c in contents}
+    items = []
+    missing = []
+    for d in expected_dates:
+        c = by_date.get(d)
+        if not c:
+            missing.append(str(d))
+            items.append({"date": str(d), "has_content": False})
+        else:
+            items.append({
+                "date": str(d),
+                "has_content": True,
+                "content_id": c.id,
+                "theme_zh": c.theme_zh,
+                "theme_en": c.theme_en,
+                "category": c.category,
+                "category_zh": c.category_zh,
+                "status": getattr(c, "status", "scheduled"),
+                "phrases_count": len(c.phrases),
+                "words_count": len(c.words),
+            })
+
+    return {
+        "from": str(start),
+        "to": str(end),
+        "days": days,
+        "available_count": len(contents),
+        "missing_count": len(missing),
+        "missing_dates": missing,
+        "items": items,
     }
 
 
@@ -116,9 +217,11 @@ async def list_all_content(
         {
             "id": c.id,
             "date": str(c.date),
-            "time_slot": c.time_slot,
             "theme_zh": c.theme_zh,
             "theme_en": c.theme_en,
+            "category": c.category,
+            "category_zh": c.category_zh,
+            "status": getattr(c, "status", "scheduled"),
             "phrase_count": len(c.phrases),
             "word_count": len(c.words),
         }

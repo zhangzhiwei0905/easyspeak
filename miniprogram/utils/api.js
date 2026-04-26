@@ -7,7 +7,9 @@ const auth = require('./auth')
  */
 
 const DEFAULT_CONFIG = {
-  baseUrl: 'http://localhost:8000/api/v1',
+  // 本地开发: http://localhost:8000/api/v1
+  // 服务器部署: https://你的域名/api/v1
+  baseUrl: 'https://easyspeak.amazingzz.xyz/api/v1',
   timeout: 15000,
   contentType: 'application/json'
 }
@@ -168,19 +170,19 @@ function request(url, options) {
   const fullUrl = buildUrl(url, params)
   const finalHeader = requestInterceptor(header)
 
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     wx.request({
       url: fullUrl,
       method: method,
       data: data,
       header: finalHeader,
       timeout: timeout,
-      success: function(res) {
+      success: function (res) {
         responseInterceptor(res)
           .then(resolve)
           .catch(reject)
       },
-      fail: function(err) {
+      fail: function (err) {
         console.error('[API] Request failed:', err)
         if (err.errMsg && err.errMsg.indexOf('timeout') !== -1) {
           wx.showToast({
@@ -271,14 +273,14 @@ function upload(url, filePath, name, formData) {
   // Remove Content-Type for upload — wx will set it with boundary automatically
   delete header['Content-Type']
 
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     wx.uploadFile({
       url: fullUrl,
       filePath: filePath,
       name: name || 'file',
       header: header,
       formData: formData || {},
-      success: function(res) {
+      success: function (res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
             resolve(JSON.parse(res.data))
@@ -289,7 +291,7 @@ function upload(url, filePath, name, formData) {
           responseInterceptor(res).then(resolve).catch(reject)
         }
       },
-      fail: function(err) {
+      fail: function (err) {
         console.error('[API] Upload failed:', err)
         wx.showToast({
           title: '上传失败',

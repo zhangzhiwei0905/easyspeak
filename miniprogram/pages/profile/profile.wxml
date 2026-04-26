@@ -27,13 +27,13 @@
       </view>
       <view class="stat-item">
         <text class="stat-icon">📚</text>
-        <text class="stat-value">{{stats.totalPhrases || 0}}</text>
-        <text class="stat-label">累计短语(个)</text>
+        <text class="stat-value">{{stats.masteredPhrases || 0}}</text>
+        <text class="stat-label">已掌握短语(个)</text>
       </view>
       <view class="stat-item">
         <text class="stat-icon">📖</text>
-        <text class="stat-value">{{stats.totalWords || 0}}</text>
-        <text class="stat-label">累计单词(个)</text>
+        <text class="stat-value">{{stats.masteredWords || 0}}</text>
+        <text class="stat-label">已掌握单词(个)</text>
       </view>
       <view class="stat-item">
         <text class="stat-icon">🎯</text>

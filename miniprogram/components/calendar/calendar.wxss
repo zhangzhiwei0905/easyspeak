@@ -1,10 +1,11 @@
 /* Calendar Component */
 .calendar {
   width: 100%;
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 28rpx;
-  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 /* Header with navigation */
@@ -46,6 +47,8 @@
 
 /* Weekday row */
 .calendar__weekdays {
+  width: 100%;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   margin-bottom: 12rpx;
@@ -66,12 +69,15 @@
 
 /* Days grid */
 .calendar__days {
+  width: 100%;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4rpx;
 }
 
 .calendar__day {
+  min-width: 0;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -111,20 +117,72 @@
   font-weight: 700;
 }
 
-/* Studied date green dot */
-.calendar__day--studied .calendar__day-num {
-  color: #52c41a;
-  font-weight: 600;
+/* Unlearned: light blue dot */
+.calendar__day--unlearned .calendar__day-num {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.calendar__day--unlearned {
+  background: rgba(24, 144, 255, 0.06);
 }
 
 .calendar__day-dot {
   width: 10rpx;
   height: 10rpx;
   border-radius: 50%;
-  background: #52c41a;
+  background: #1890ff;
   margin-top: 4rpx;
   position: absolute;
   bottom: 8rpx;
+}
+
+/* Studied: green dot */
+.calendar__day--studied .calendar__day-num {
+  color: #52c41a;
+  font-weight: 600;
+}
+
+.calendar__day-dot--green {
+  background: #52c41a;
+}
+
+/* Excellent: dark green solid fill */
+.calendar__day--excellent {
+  background: rgba(56, 158, 13, 0.15);
+}
+
+.calendar__day--excellent .calendar__day-num {
+  color: #389e0d;
+  font-weight: 700;
+}
+
+.calendar__day-solid {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #389e0d;
+  position: absolute;
+  bottom: 8rpx;
+}
+
+/* Poor: yellow dot */
+.calendar__day--poor .calendar__day-num {
+  color: #fa8c16;
+  font-weight: 600;
+}
+
+.calendar__day--reviewed .calendar__day-num {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.calendar__day--reviewed {
+  background: rgba(255, 77, 79, 0.06);
+}
+
+.calendar__day-dot--yellow {
+  background: #fa8c16;
 }
 
 /* Today + studied combined */
@@ -135,4 +193,93 @@
 
 .calendar__day--today.calendar__day--studied .calendar__day-num {
   color: #52c41a;
+}
+
+.calendar__day--today.calendar__day--excellent {
+  background: rgba(56, 158, 13, 0.12);
+  border-color: #389e0d;
+}
+
+.calendar__day--today.calendar__day--excellent .calendar__day-num {
+  color: #389e0d;
+}
+
+.calendar__day--today.calendar__day--unlearned {
+  background: rgba(24, 144, 255, 0.06);
+  border-color: #1890ff;
+}
+
+.calendar__day--today.calendar__day--unlearned .calendar__day-num {
+  color: #1890ff;
+}
+
+.calendar__day--today.calendar__day--poor {
+  background: rgba(250, 140, 22, 0.08);
+  border-color: #fa8c16;
+}
+
+.calendar__day--today.calendar__day--poor .calendar__day-num {
+  color: #fa8c16;
+}
+
+/* Review count badge */
+.calendar__day-review {
+  position: absolute;
+  bottom: 4rpx;
+  right: 2rpx;
+  font-size: 16rpx;
+  color: #ffffff;
+  background: #ff4d4f;
+  border-radius: 999rpx;
+  padding: 2rpx 6rpx;
+  font-weight: 600;
+  line-height: 1;
+  min-width: 28rpx;
+  text-align: center;
+}
+
+/* Legend */
+.calendar__legend {
+  display: flex;
+  justify-content: center;
+  gap: 24rpx;
+  margin-top: 20rpx;
+  padding-top: 16rpx;
+}
+
+.calendar__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.calendar__legend-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+}
+
+.calendar__legend-dot--blue {
+  background: #1890ff;
+}
+
+.calendar__legend-dot--green {
+  background: #52c41a;
+}
+
+.calendar__legend-dot--dark {
+  background: #389e0d;
+}
+
+.calendar__legend-dot--yellow {
+  background: #fa8c16;
+}
+
+.calendar__legend-dot--red {
+  background: #ff4d4f;
+}
+
+.calendar__legend-text {
+  font-size: 20rpx;
+  color: #999;
 }

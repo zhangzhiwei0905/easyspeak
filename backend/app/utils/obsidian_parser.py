@@ -21,9 +21,7 @@ def parse_obsidian_file(filepath: str) -> ContentImport:
     push_date = date.fromisoformat(header_match.group(1))
     theme_zh = header_match.group(2).strip()
     theme_en = header_match.group(3).strip() if header_match.group(3) else ""
-
-    # Determine time_slot from emoji
-    time_slot = "morning" if "☀️" in lines[0] else "evening"
+    category, category_zh = _parse_category(text)
 
     # Parse introduction (paragraph after header, before first ---)
     introduction = ""
@@ -46,14 +44,60 @@ def parse_obsidian_file(filepath: str) -> ContentImport:
 
     return ContentImport(
         date=push_date,
-        time_slot=time_slot,
         theme_zh=theme_zh,
         theme_en=theme_en,
+        category=category,
+        category_zh=category_zh,
         introduction=introduction if introduction else None,
         practice_tips=practice_tips,
         phrases=phrases,
         words=words,
     )
+
+
+def _parse_category(text: str) -> tuple[str, str]:
+    """Extract category metadata from markdown body.
+
+    Supported examples:
+    - 分类：旅行出行（travel）
+    - 分类: travel
+    - Category: travel
+    """
+    patterns = [
+        r"分类[：:]\s*([\u4e00-\u9fa5]+)\s*[（(]([a-z_]+)[)）]",
+        r"分类[：:]\s*([a-z_]+)",
+        r"Category[：:]\s*([a-z_]+)",
+    ]
+    zh_to_key = {
+        "生活场景": "life",
+        "旅行出行": "travel",
+        "职场商务": "work",
+        "社交关系": "social",
+        "购物消费": "shopping",
+        "医疗健康": "health",
+        "学习教育": "education",
+        "电话邮件": "communication",
+        "紧急情况": "emergency",
+        "文化娱乐": "entertainment",
+    }
+    key_to_zh = {v: k for k, v in zh_to_key.items()}
+
+    m = re.search(patterns[0], text)
+    if m:
+        category_zh = m.group(1).strip()
+        category = m.group(2).strip()
+        return category, category_zh
+
+    for pattern in patterns[1:]:
+        m = re.search(pattern, text)
+        if m:
+            category = m.group(1).strip()
+            category_zh = key_to_zh.get(category)
+            if not category_zh:
+                raise ValueError(f"Unknown category: {category}")
+            return category, category_zh
+
+    raise ValueError("Missing category metadata in markdown")
 
 
 def _parse_phrases(text: str) -> list[PhraseImport]:
@@ -87,6 +131,17 @@ def _parse_single_phrase(section: str) -> Optional[PhraseImport]:
         return None
 
     full_text = "\n".join(lines)
+
+    # Extract meaning (e.g. **🎯 核心词义：** 出去玩)
+    meaning = ""
+    meaning_line_match = re.search(r"\*\*🎯?\s*核心词[意义][：:]?\s*\*\*\s*(.+)", full_text)
+    if meaning_line_match:
+        meaning = meaning_line_match.group(1).strip()
+    else:
+        # Try block format
+        meaning_match = re.search(r"\*\*🎯?\s*核心词[意义]\*\*\s*\n(.*?)(?=\n-|\n\*\*|\n>\s|📖)", full_text, re.DOTALL)
+        if meaning_match:
+            meaning = meaning_match.group(1).strip()
 
     # Extract explanation
     explanation = ""
@@ -123,6 +178,7 @@ def _parse_single_phrase(section: str) -> Optional[PhraseImport]:
 
     return PhraseImport(
         phrase=phrase_name,
+        meaning=meaning if meaning else None,
         explanation=explanation,
         examples=examples,
         source=source if source else None,

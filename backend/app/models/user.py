@@ -18,6 +18,7 @@ class User(Base):
 
     progress_records = relationship("UserProgress", back_populates="user")
     quiz_records = relationship("QuizRecord", back_populates="user")
+    learn_sessions = relationship("LearnSession", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.openid}>"

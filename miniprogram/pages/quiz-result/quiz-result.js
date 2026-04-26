@@ -1,36 +1,36 @@
-/**
- * EasySpeak - Quiz Result Page (答题结果)
- * Shows score circle animation, question review list, and action buttons
- */
+var navigation = require('../../utils/navigation')
+
+function getTypeLabel(type) {
+  var mapping = {
+    phrase_meaning_choice: '短语含义',
+    word_phonetic_choice: '单词音标',
+    phrase_fill_input: '短语填空'
+  }
+  return mapping[type] || type
+}
 
 Page({
   data: {
-    // Result data
     correct: 0,
     total: 0,
     accuracy: 0,
-    quizType: 'lightning',
+    mode: 'random',
+    questionCount: 10,
+    quizMode: 'normal',
+    contentIds: '',
 
-    // Score circle animation
     scorePercent: 0,
     scoreDisplay: 0,
     animating: false,
 
-    // Performance message
     performanceEmoji: '🎉',
     performanceText: '太棒了！',
 
-    // Question review list
     results: [],
-
-    // Breakdown by type
     typeStats: [],
 
-    // Filter
-    filter: 'all', // all | wrong | phrase_meaning | word_phonetic | fill_blank
+    filter: 'all',
     filteredResults: [],
-
-    // UI
     showAll: false,
     visibleCount: 5
   },
@@ -40,9 +40,11 @@ Page({
     var quizResult = app.globalData.quizResult
 
     if (!quizResult) {
-      // No result data, go back
       wx.showToast({ title: '无测验结果', icon: 'none' })
-      wx.navigateBack()
+      navigation.safeNavigateBack({
+        fallbackUrl: '/pages/quiz/quiz',
+        fallbackIsTab: true
+      })
       return
     }
 
@@ -50,9 +52,8 @@ Page({
     var total = quizResult.total || 0
     var accuracy = total > 0 ? Math.round((correct / total) * 100) : 0
 
-    // Performance evaluation
-    var performanceEmoji = '🎉'
-    var performanceText = '太棒了！'
+    var performanceEmoji = '📚'
+    var performanceText = '多复习一下吧！'
     if (accuracy === 100) {
       performanceEmoji = '🏆'
       performanceText = '完美满分！'
@@ -65,47 +66,37 @@ Page({
     } else if (accuracy >= 40) {
       performanceEmoji = '💪'
       performanceText = '还需努力！'
-    } else {
-      performanceEmoji = '📚'
-      performanceText = '多复习一下吧！'
     }
 
     this.setData({
       correct: correct,
       total: total,
       accuracy: accuracy,
-      quizType: quizResult.quizType || 'lightning',
+      mode: quizResult.mode || 'random',
+      questionCount: quizResult.questionCount || total || 10,
+      quizMode: quizResult.quizMode || 'normal',
+      contentIds: quizResult.contentIds || '',
       performanceEmoji: performanceEmoji,
       performanceText: performanceText,
       results: quizResult.results || [],
       animating: true
     })
 
-    // Compute breakdown by type
     this._computeTypeStats()
     this._applyFilter()
-
-    // Trigger score animation
     this._animateScore(accuracy)
   },
-
-  // ========================
-  // Score Animation
-  // ========================
 
   _animateScore: function (targetPercent) {
     var self = this
     var duration = 1200
     var startTime = Date.now()
 
-    var animate = function () {
+    function animate() {
       var elapsed = Date.now() - startTime
       var progress = Math.min(elapsed / duration, 1)
-
-      // Ease out cubic
       var eased = 1 - Math.pow(1 - progress, 3)
       var currentPercent = Math.round(targetPercent * eased)
-      var currentScore = Math.round((self.data.correct / Math.max(self.data.total, 1)) * eased * 100) / 100
 
       self.setData({
         scorePercent: currentPercent,
@@ -126,39 +117,35 @@ Page({
     setTimeout(animate, 300)
   },
 
-  // ========================
-  // Type Stats & Filter
-  // ========================
-
   _computeTypeStats: function () {
-    var results = this.data.results
-    var typeMap = {
-      'phrase_meaning': { label: '短语含义', correct: 0, total: 0 },
-      'word_phonetic': { label: '单词音标', correct: 0, total: 0 },
-      'fill_blank': { label: '填空题', correct: 0, total: 0 }
-    }
-
-    results.forEach(function (r) {
-      var t = r.type || 'phrase_meaning'
-      if (!typeMap[t]) {
-        typeMap[t] = { label: t, correct: 0, total: 0 }
+    var bucket = {}
+    this.data.results.forEach(function (item) {
+      var type = item.type || 'unknown'
+      if (!bucket[type]) {
+        bucket[type] = {
+          type: type,
+          label: getTypeLabel(type),
+          correct: 0,
+          total: 0
+        }
       }
-      typeMap[t].total += 1
-      if (r.isCorrect) typeMap[t].correct += 1
+
+      bucket[type].total += 1
+      if (item.isCorrect) {
+        bucket[type].correct += 1
+      }
     })
 
-    var typeStats = Object.keys(typeMap)
-      .filter(function (k) { return typeMap[k].total > 0 })
-      .map(function (k) {
-        var s = typeMap[k]
-        return {
-          type: k,
-          label: s.label,
-          correct: s.correct,
-          total: s.total,
-          accuracy: s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0
-        }
-      })
+    var typeStats = Object.keys(bucket).map(function (type) {
+      var stat = bucket[type]
+      return {
+        type: stat.type,
+        label: stat.label,
+        correct: stat.correct,
+        total: stat.total,
+        accuracy: stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0
+      }
+    })
 
     this.setData({ typeStats: typeStats })
   },
@@ -167,53 +154,66 @@ Page({
     var filter = this.data.filter
     var results = this.data.results
 
-    var filtered = results
     if (filter === 'wrong') {
-      filtered = results.filter(function (r) { return !r.isCorrect })
+      results = results.filter(function (item) { return !item.isCorrect })
     } else if (filter !== 'all') {
-      filtered = results.filter(function (r) { return r.type === filter })
+      results = results.filter(function (item) { return item.type === filter })
     }
 
-    this.setData({ filteredResults: filtered, showAll: false })
+    this.setData({
+      filteredResults: results,
+      showAll: false
+    })
   },
 
   onFilterTap: function (e) {
-    var filter = e.currentTarget.dataset.filter
-    this.setData({ filter: filter })
+    this.setData({ filter: e.currentTarget.dataset.filter })
     this._applyFilter()
   },
-
-  // ========================
-  // Actions
-  // ========================
 
   onShowMore: function () {
     this.setData({ showAll: true })
   },
 
   onRetry: function () {
-    var type = this.data.quizType || 'lightning'
-    var count = this.data.total || 10
-    var url = '/pages/quiz-play/quiz-play?type=' + type + '&count=' + count
+    var query = [
+      'mode=' + encodeURIComponent(this.data.mode),
+      'questionCount=' + encodeURIComponent(this.data.questionCount),
+      'quizMode=' + encodeURIComponent(this.data.quizMode)
+    ]
 
-    if (type === 'theme') {
-      url += '&mode=normal'
-    } else if (type === 'lightning') {
-      url += '&mode=timed'
-    } else {
-      url += '&mode=normal'
+    if (this.data.contentIds) {
+      query.push('contentIds=' + encodeURIComponent(this.data.contentIds))
     }
 
-    wx.redirectTo({ url: url })
+    wx.redirectTo({
+      url: '/pages/quiz-play/quiz-play?' + query.join('&')
+    })
+  },
+
+  onGoWrongReview: function () {
+    var wrongCount = this.data.results.filter(function (item) {
+      return !item.isCorrect
+    }).length
+
+    if (wrongCount === 0) {
+      wx.showToast({ title: '本次没有错题', icon: 'none' })
+      return
+    }
+
+    wx.redirectTo({
+      url: '/pages/quiz-play/quiz-play?mode=wrong_review&questionCount=' + Math.min(wrongCount, 20) + '&quizMode=normal'
+    })
   },
 
   onBackToQuiz: function () {
-    wx.navigateBack({ delta: 2 })
+    wx.switchTab({
+      url: '/pages/quiz/quiz'
+    })
   },
 
   onShareAppMessage: function () {
-    var accuracy = this.data.accuracy
-    var emoji = accuracy >= 80 ? '🎉' : accuracy >= 60 ? '👍' : '💪'
+    var emoji = this.data.accuracy >= 80 ? '🎉' : this.data.accuracy >= 60 ? '👍' : '💪'
     return {
       title: emoji + ' 我在EasySpeak测验中答对了 ' + this.data.correct + '/' + this.data.total + ' 题！',
       path: '/pages/quiz/quiz'

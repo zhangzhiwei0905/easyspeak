@@ -35,16 +35,15 @@ Page({
 
     // Date picker
     currentDate: formatDateStr(new Date()),
-    currentDateDisplay: '',
-    currentWeekday: '',
-    timeSlot: 'morning', // 'morning' | 'evening'
+ currentDateDisplay: '',
+ currentWeekday: '',
 
-    // Today's content
-    content: null,
-    morningContent: null,
-    eveningContent: null,
+ // Today's content
+ content: null,
+    tomorrowTheme: null,
+    tomorrowDateDisplay: '',
+    tomorrowWeekday: '',
 
-    // Phrases list
     phrases: [],
 
     // Words list
@@ -62,7 +61,15 @@ Page({
 
     // Error state
     error: false,
-    errorMsg: ''
+    errorMsg: '',
+
+    isToday: true,
+
+    // Calendar Popup
+    showCalendar: false,
+    calendarYear: 2026,
+    calendarMonth: 4,
+    calendarDays: []
   },
 
   onLoad: function () {
@@ -83,13 +90,12 @@ Page({
   },
 
   onShareAppMessage: function () {
-    var slot = this.data.timeSlot === 'morning' ? '晨间' : '晚间'
     var theme = ''
     if (this.data.content) {
       theme = this.data.content.theme_zh || ''
     }
     return {
-      title: 'EasySpeak · ' + slot + '推送 - ' + theme,
+      title: 'EasySpeak · ' + theme,
       path: '/pages/index/index'
     }
   },
@@ -104,7 +110,8 @@ Page({
     this.setData({
       currentDate: dateStr,
       currentDateDisplay: formatDisplayDate(dateStr),
-      currentWeekday: getWeekday(dateStr)
+      currentWeekday: getWeekday(dateStr),
+      isToday: true
     })
   },
 
@@ -118,6 +125,7 @@ Page({
       if (cached) {
         console.log('[Index] Using cached data for', dateStr)
         self._processData(cached)
+        self._loadTomorrowTheme(dateStr)
         self.setData({ loading: false })
         // Still fetch in background to refresh cache
         self._fetchFromServer(dateStr)
@@ -137,12 +145,13 @@ Page({
         // Still allow viewing without login for content
         console.log('[Index] Login failed, fetching without auth')
       }
-      return api.get('/daily/today', { date: dateStr })
+      return api.get('/daily/today', { target_date: dateStr })
     }).then(function (data) {
       console.log('[Index] API response:', data)
       // Cache the result
       storage.setDailyCache(dateStr, data)
       self._processData(data)
+      self._loadTomorrowTheme(dateStr)
       self.setData({ loading: false, refreshing: false })
     }).catch(function (err) {
       console.error('[Index] Fetch failed:', err)
@@ -156,39 +165,102 @@ Page({
       var cached = storage.getDailyCache(dateStr)
       if (cached) {
         self._processData(cached)
+        self._loadTomorrowTheme(dateStr)
         self.setData({ error: false })
       }
     })
   },
 
-  _processData: function (data) {
-    if (!data) {
-      this.setData({ isEmpty: true, content: null, phrases: [], words: [] })
+  _loadTomorrowTheme: function (baseDateStr) {
+    var self = this
+    if (!this.data.isToday) {
+      self.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
       return
     }
-
-    // API returns { morning: {...}, evening: {...}, progress: {...}, review: {...} }
-    var morning = data.morning || null
-    var evening = data.evening || null
-
-    this.setData({
-      morningContent: morning,
-      eveningContent: evening
+    var tomorrow = new Date(baseDateStr + 'T00:00:00')
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    var tomorrowStr = formatDateStr(tomorrow)
+    var cached = storage.getDailyCache(tomorrowStr)
+    if (cached) {
+      self._processTomorrowData(tomorrowStr, cached)
+      return
+    }
+    api.get('/daily/today', { target_date: tomorrowStr }).then(function (data) {
+      storage.setDailyCache(tomorrowStr, data)
+      self._processTomorrowData(tomorrowStr, data)
+    }).catch(function () {
+      self.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
     })
+  },
 
-    // Set active content based on current timeSlot
-    this._updateActiveContent()
+ _processTomorrowData: function (dateStr, data) {
+ var content = data && data.content
+ if (!content) {
+ this.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
+ return
+ }
+ this.setData({
+ tomorrowTheme: {
+ theme_zh: content.theme_zh || '',
+ theme_en: content.theme_en || '',
+ category_zh: content.category_zh || ''
+ },
+ tomorrowDateDisplay: formatDisplayDate(dateStr),
+ tomorrowWeekday: getWeekday(dateStr)
+ })
+ },
+
+ _processData: function (data) {
+ if (!data || !data.content) {
+ this.setData({ isEmpty: true, content: null, phrases: [], words: [] })
+ return
+ }
+
+ var content = data.content
+
+ var phrases = (content.phrases || []).map(function (p) {
+ return {
+ id: p.id,
+ phrase: p.phrase || '',
+ meaning: p.meaning || '',
+ explanation: p.explanation || '',
+ examples: [
+ { en: p.example_1 || '', cn: p.example_1_cn || '' },
+ { en: p.example_2 || '', cn: p.example_2_cn || '' },
+ { en: p.example_3 || '', cn: p.example_3_cn || '' }
+ ].filter(function (e) { return e.en }),
+ source: p.source || ''
+ }
+ })
+
+ var words = (content.words || []).map(function (w) {
+ return {
+ id: w.id,
+ word: w.word || '',
+ phonetic: w.phonetic || '',
+ partOfSpeech: w.part_of_speech || '',
+ meaning: w.meaning || '',
+ example: w.example || ''
+ }
+ })
+
+ this.setData({
+ content: content,
+ isEmpty: false,
+ phrases: phrases,
+ words: words
+ })
 
     // Progress
     var progress = data.progress || {}
     this.setData({
       phraseProgress: {
         current: progress.phrases_learned || 0,
-        total: progress.phrases_total || 5
+        total: progress.phrases_total || phrases.length
       },
       wordProgress: {
         current: progress.words_learned || 0,
-        total: progress.words_total || 20
+        total: progress.words_total || words.length
       }
     })
 
@@ -199,72 +271,123 @@ Page({
     })
   },
 
-  _updateActiveContent: function () {
-    var slot = this.data.timeSlot
-    var content = slot === 'morning' ? this.data.morningContent : this.data.eveningContent
-
-    if (!content) {
-      this.setData({
-        content: null,
-        isEmpty: true,
-        phrases: [],
-        words: []
-      })
-      return
-    }
-
-    var phrases = (content.phrases || []).map(function (p) {
-      return {
-        id: p.id,
-        phrase: p.phrase || '',
-        explanation: p.explanation || '',
-        examples: [
-          { en: p.example_1 || '', cn: p.example_1_cn || '' },
-          { en: p.example_2 || '', cn: p.example_2_cn || '' },
-          { en: p.example_3 || '', cn: p.example_3_cn || '' }
-        ].filter(function (e) { return e.en }),
-        source: p.source || ''
-      }
-    })
-
-    var words = (content.words || []).map(function (w) {
-      return {
-        id: w.id,
-        word: w.word || '',
-        phonetic: w.phonetic || '',
-        partOfSpeech: w.part_of_speech || '',
-        meaning: w.meaning || '',
-        example: w.example || ''
-      }
-    })
-
-    this.setData({
-      content: content,
-      isEmpty: false,
-      phrases: phrases,
-      words: words
-    })
-  },
-
   // ========================
   // Event Handlers
   // ========================
 
-  onTimeSlotChange: function (e) {
-    var slot = e.currentTarget.dataset.slot
-    if (slot === this.data.timeSlot) return
-    this.setData({ timeSlot: slot })
-    this._updateActiveContent()
+  onOpenCalendar: function () {
+    var d = new Date(this.data.currentDate + 'T00:00:00')
+    this.setData({
+      showCalendar: true,
+      calendarYear: d.getFullYear(),
+      calendarMonth: d.getMonth() + 1
+    })
+    this._loadCalendarData(this.data.calendarYear, this.data.calendarMonth)
+  },
+
+  onCloseCalendar: function () {
+    this.setData({ showCalendar: false })
+  },
+
+  onPrevMonth: function () {
+    var y = this.data.calendarYear
+    var m = this.data.calendarMonth - 1
+    if (m < 1) { m = 12; y-- }
+    this.setData({ calendarYear: y, calendarMonth: m })
+    this._loadCalendarData(y, m)
+  },
+
+  onNextMonth: function () {
+    var today = new Date()
+    var ty = today.getFullYear()
+    var tm = today.getMonth() + 1
+    var y = this.data.calendarYear
+    var m = this.data.calendarMonth + 1
+    if (m > 12) { m = 1; y++ }
+    if (y > ty || (y === ty && m > tm)) {
+      wx.showToast({ title: '不能查看未来月份哦', icon: 'none' })
+      return
+    }
+    this.setData({ calendarYear: y, calendarMonth: m })
+    this._loadCalendarData(y, m)
+  },
+
+  onSelectCalendarDate: function (e) {
+    var ds = e.currentTarget.dataset
+    if (ds.empty || !ds.has) return
+    this.setData({ showCalendar: false })
+    if (ds.date === this.data.currentDate) return
+
+    this.setData({
+      currentDate: ds.date,
+      currentDateDisplay: formatDisplayDate(ds.date),
+      currentWeekday: getWeekday(ds.date),
+      isToday: ds.date === formatDateStr(new Date())
+    })
+    this._loadTodayData()
+  },
+
+  _loadCalendarData: function (y, m) {
+    var self = this
+    wx.showLoading({ title: '加载中...', mask: true })
+    api.get('/daily/calendar', { year: y, month: m })
+      .then(function (data) {
+        wx.hideLoading()
+        self._buildCalendarGrid(y, m, data.items || [])
+      })
+      .catch(function (err) {
+        wx.hideLoading()
+        wx.showToast({ title: '日历加载失败', icon: 'none' })
+      })
+  },
+
+  _buildCalendarGrid: function (year, month, items) {
+    var firstDay = new Date(year, month - 1, 1).getDay()
+    var daysInMonth = new Date(year, month, 0).getDate()
+
+    var itemsMap = {}
+    items.forEach(function(item) {
+      itemsMap[item.date] = item
+    })
+
+    var grid = []
+
+    for (var i = 0; i < firstDay; i++) {
+      grid.push({ empty: true })
+    }
+
+    var todayStr = formatDateStr(new Date())
+    var currentStr = this.data.currentDate
+
+    for (var i = 1; i <= daysInMonth; i++) {
+      var dStr = year + '-' + String(month).padStart(2, '0') + '-' + String(i).padStart(2, '0')
+      var hasItem = itemsMap[dStr]
+      var theme = hasItem ? hasItem.theme_zh : ''
+      var displayTheme = theme.length > 4 ? theme.substring(0, 3) + '…' : theme
+
+      grid.push({
+        empty: false,
+        day: i,
+        dateStr: dStr,
+        theme_zh: displayTheme,
+        hasContent: !!hasItem,
+        isToday: dStr === todayStr,
+        isSelected: dStr === currentStr
+      })
+    }
+    this.setData({ calendarDays: grid })
   },
 
   onPrevDate: function () {
     var current = new Date(this.data.currentDate + 'T00:00:00')
     current.setDate(current.getDate() - 1)
     var newDateStr = formatDateStr(current)
+    var todayStr = formatDateStr(new Date())
     this.setData({
       currentDate: newDateStr,
       currentDateDisplay: formatDisplayDate(newDateStr),
-      currentWeekday: getWeekday(newDateStr)
+      currentWeekday: getWeekday(newDateStr),
+      isToday: newDateStr === todayStr
     })
     this._loadTodayData()
   },
@@ -281,7 +404,8 @@ Page({
     this.setData({
       currentDate: newDateStr,
       currentDateDisplay: formatDisplayDate(newDateStr),
-      currentWeekday: getWeekday(newDateStr)
+      currentWeekday: getWeekday(newDateStr),
+      isToday: newDateStr === today
     })
     this._loadTodayData()
   },
@@ -292,7 +416,8 @@ Page({
     this.setData({
       currentDate: today,
       currentDateDisplay: formatDisplayDate(today),
-      currentWeekday: getWeekday(today)
+      currentWeekday: getWeekday(today),
+      isToday: true
     })
     this._loadTodayData()
   },
@@ -305,37 +430,46 @@ Page({
     })
   },
 
+  onStartLearnPhrase: function () {
+    this._startLearn('phrase')
+  },
+
+  onStartLearnWord: function () {
+    this._startLearn('word')
+  },
+
+  _startLearn: function (learnType) {
+    var content = this.data.content
+    if (!content || !content.id) return
+    var draft = storage.getLearnDraft(content.id, learnType)
+    var url = '/pages/learn-session/learn-session?contentId=' + content.id + '&learnType=' + learnType
+
+    if (draft) {
+      wx.showActionSheet({
+        itemList: ['继续上次学习', '重新开始'],
+        success: function (res) {
+          if (res.tapIndex === 0) {
+            wx.navigateTo({ url: url + '&resume=1' })
+          } else if (res.tapIndex === 1) {
+            storage.removeLearnDraft(content.id, learnType)
+            wx.navigateTo({ url: url })
+          }
+        }
+      })
+      return
+    }
+
+    wx.navigateTo({
+      url: url
+    })
+  },
+
   onPhraseToggle: function (e) {
     // Phrase card expanded/collapsed — handled by component internally
   },
 
-  onPhraseTap: function (e) {
-    var id = e.currentTarget.dataset.id
-    if (id) {
-      wx.navigateTo({
-        url: '/pages/detail/detail?phraseId=' + id
-      })
-    }
-  },
-
-  onViewAllPhrases: function () {
-    var content = this.data.content
-    if (!content || !content.id) return
-    wx.navigateTo({
-      url: '/pages/detail/detail?id=' + content.id + '&tab=phrases'
-    })
-  },
-
-  onViewAllWords: function () {
-    var content = this.data.content
-    if (!content || !content.id) return
-    wx.navigateTo({
-      url: '/pages/detail/detail?id=' + content.id + '&tab=words'
-    })
-  },
-
   onStartReview: function () {
-    wx.navigateTo({
+    wx.switchTab({
       url: '/pages/review/review'
     })
   },

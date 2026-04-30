@@ -33,6 +33,7 @@ Page({
     options: [],
     selectedKey: '',
     inputAnswer: '',
+    selectedWordText: '',
     canSubmit: false,
     submitted: false,
     isCorrect: false,
@@ -149,11 +150,17 @@ Page({
 
   _processQuestions: function (rawQuestions) {
     return rawQuestions.map(function (item) {
+      var prompt = item.prompt || ''
+      var interactionType = item.interaction_type || 'choice'
+      // For word_select, extract sentence part after '\n'
+      if (interactionType === 'word_select' && prompt.indexOf('\n') !== -1) {
+        prompt = prompt.split('\n').slice(1).join('\n')
+      }
       return {
         id: item.question_id,
         questionType: item.question_type || '',
-        interactionType: item.interaction_type || 'choice',
-        prompt: item.prompt || '',
+        interactionType: interactionType,
+        prompt: prompt,
         placeholder: item.placeholder || '',
         options: (item.options || []).map(function (opt) {
           return {
@@ -213,10 +220,16 @@ Page({
     if (this.data.submitted) return
     var key = (e.detail && e.detail.key) || (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key) || ''
     if (!key) return
-    this.setData({
+    var updates = {
       selectedKey: key,
       canSubmit: true
-    })
+    }
+    // For word_select, also record the selected word text
+    if (this.data.interactionType === 'word_select') {
+      var selectedOpt = this.data.options.find(function (item) { return item.key === key })
+      updates.selectedWordText = selectedOpt ? selectedOpt.text : ''
+    }
+    this.setData(updates)
   },
 
   onInputAnswer: function (e) {
@@ -241,6 +254,11 @@ Page({
       return
     }
 
+    if (interactionType === 'word_select' && !selectedKey) {
+      wx.showToast({ title: '请先选择答案', icon: 'none' })
+      return
+    }
+
     if (interactionType === 'text_input' && !inputAnswer.trim()) {
       wx.showToast({ title: '请先输入答案', icon: 'none' })
       return
@@ -257,6 +275,14 @@ Page({
       correctAnswerText = correctOption ? correctOption.text : ''
       isCorrect = !!correctOption && correctOption.key === selectedKey
       correctAnswerText = correctOption ? correctOption.key + '. ' + correctOption.text : ''
+    } else if (interactionType === 'word_select') {
+      // Same logic as choice
+      var selectedOption = this.data.options.find(function (item) { return item.key === selectedKey })
+      var correctOption = this.data.options.find(function (item) { return item.isAnswer })
+      userAnswerText = selectedOption ? selectedOption.text : ''
+      correctAnswerText = correctOption ? correctOption.text : ''
+      isCorrect = !!correctOption && correctOption.key === selectedKey
+      correctAnswerText = correctOption ? correctOption.text : ''
     } else {
       userAnswerText = inputAnswer.trim()
       correctAnswerText = question.acceptedAnswers[0] || ''
@@ -337,6 +363,7 @@ Page({
       options: nextQuestion.options,
       selectedKey: '',
       inputAnswer: '',
+      selectedWordText: '',
       canSubmit: false,
       submitted: false,
       isCorrect: false,

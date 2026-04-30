@@ -63,10 +63,11 @@ Page({
     stage4Index: 0,
     stage4Item: null,
     stage4Flipped: false,
-    stage4Mode: 'self', // 'self' or 'spelling'
-    spellingInput: '',
-    spellingSubmitted: false,
-    spellingCorrect: false,
+    stage4Mode: 'self', // 'self' or 'word_select'
+    // word_select state (Duolingo-style)
+    wordSlots: [],       // user-filled slots [{text, isCorrect}]
+    availableTiles: [],  // tiles to pick from [{text, used}]
+    wordSelectSubmitted: false,
 
     // --- stats for report ---
     startTime: 0,
@@ -147,9 +148,6 @@ Page({
       }
 
       var items = data.items
-      console.log('[LearnSession] API response items count:', items.length)
-      console.log('[LearnSession] First item:', JSON.stringify(items[0]))
-      console.log('[LearnSession] First item stage2_quiz:', JSON.stringify(items[0].stage2_quiz))
 
       self._attemptState = {}
       items.forEach(function (entry) {
@@ -280,12 +278,7 @@ Page({
     // Move to Stage 2
     var item = this.data.currentItem
     var quiz = item.stage2_quiz
-    console.log('[LearnSession] Stage2 quiz data:', JSON.stringify(quiz))
-    if (quiz && quiz.options) {
-      for (var i = 0; i < quiz.options.length; i++) {
-        console.log('[LearnSession] Option', quiz.options[i].key, ':', JSON.stringify(quiz.options[i].text), quiz.options[i].key === quiz.answer ? '<-- CORRECT' : '')
-      }
-    }
+
     this.setData({
       stage: 2,
       quizData: quiz,
@@ -487,16 +480,39 @@ Page({
     var items = this.data.allItems.slice()
     this._shuffle(items)
 
+    // Prepare word_select data for each item that has stage4_quiz
+    var stage4Data = items.map(function (item) {
+      var quiz = item.stage4_quiz || null
+      var mode = 'self'
+      var slots = []
+      var tiles = []
+      if (quiz && quiz.word_tiles && quiz.word_tiles.length > 0 && item.type === 'phrase') {
+        mode = 'word_select'
+        // Create empty slots based on correct phrase word count
+        var correctWords = (quiz.correct_phrase || '').split(' ')
+        for (var i = 0; i < correctWords.length; i++) {
+          slots.push({ text: '', isCorrect: null })
+        }
+        // Shuffle tiles for picking
+        tiles = quiz.word_tiles.map(function (t) {
+          return { text: t, used: false }
+        })
+      }
+      return { mode: mode, slots: slots, tiles: tiles }
+    })
+
+    var firstData = stage4Data[0] || { mode: 'self', slots: [], tiles: [] }
+
     this.setData({
       phase: 'stage4',
       stage4Items: items,
       stage4Index: 0,
       stage4Item: items[0],
       stage4Flipped: false,
-      stage4Mode: this._getStage4Mode(0),
-      spellingInput: '',
-      spellingSubmitted: false,
-      spellingCorrect: false,
+      stage4Mode: firstData.mode,
+      wordSlots: firstData.slots,
+      availableTiles: firstData.tiles,
+      wordSelectSubmitted: false,
       masteryResults: []
     }, this._saveDraft.bind(this))
   },
@@ -509,9 +525,12 @@ Page({
     this._playItemAudio(this.data.stage4Item)
   },
 
-  _getStage4Mode: function (index) {
-    // 混合题型：奇数项进入拼写题，偶数项保留“点击显示答案 + 自评”
-    return index % 2 === 1 ? 'spelling' : 'self'
+  _getStage4Mode: function (item) {
+    // Phrase items use word_select if stage4_quiz available; words use self-assess
+    if (item && item.type === 'phrase' && item.stage4_quiz && item.stage4_quiz.word_tiles && item.stage4_quiz.word_tiles.length > 0) {
+      return 'word_select'
+    }
+    return 'self'
   },
 
   _getItemAnswerText: function (item) {
@@ -519,31 +538,98 @@ Page({
     return item.type === 'phrase' ? (item.phrase || '') : (item.word || '')
   },
 
-  _normalizeSpelling: function (text) {
-    return (text || '').toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9]+/g, '')
-  },
+  // ================================================
+  // Stage 4: Word Select (Duolingo-style)
+  // ================================================
 
-  onSpellingInput: function (e) {
-    this.setData({ spellingInput: e.detail.value || '' }, this._saveDraft.bind(this))
-  },
+  onWordTileTap: function (e) {
+    if (this.data.wordSelectSubmitted) return
+    var tileIndex = e.currentTarget.dataset.index
+    var slots = this.data.wordSlots.slice()
+    var tiles = this.data.availableTiles.slice()
 
-  onSubmitSpelling: function () {
-    if (this.data.spellingSubmitted) return
-    var input = (this.data.spellingInput || '').trim()
-    if (!input) {
-      wx.showToast({ title: '请先输入答案', icon: 'none' })
-      return
+    // Find first empty slot
+    var emptySlotIndex = -1
+    for (var i = 0; i < slots.length; i++) {
+      if (!slots[i].text) {
+        emptySlotIndex = i
+        break
+      }
     }
-    var answer = this._getItemAnswerText(this.data.stage4Item)
-    var isCorrect = this._normalizeSpelling(input) === this._normalizeSpelling(answer)
+    if (emptySlotIndex === -1) return // all slots filled
+
+    // Fill the slot and mark tile as used
+    slots[emptySlotIndex] = { text: tiles[tileIndex].text, isCorrect: null }
+    tiles[tileIndex] = { text: tiles[tileIndex].text, used: true }
+
     this.setData({
-      spellingSubmitted: true,
-      spellingCorrect: isCorrect,
+      wordSlots: slots,
+      availableTiles: tiles
+    })
+
+    // Check if all slots are filled → auto-submit
+    var allFilled = true
+    for (var i = 0; i < slots.length; i++) {
+      if (!slots[i].text) { allFilled = false; break }
+    }
+    if (allFilled) {
+      // Small delay for visual feedback
+      var self = this
+      setTimeout(function () {
+        self._checkWordSelect()
+      }, 300)
+    }
+  },
+
+  onSlotTap: function (e) {
+    if (this.data.wordSelectSubmitted) return
+    var slotIndex = e.currentTarget.dataset.index
+    var slots = this.data.wordSlots.slice()
+    var tiles = this.data.availableTiles.slice()
+
+    if (!slots[slotIndex] || !slots[slotIndex].text) return
+
+    // Return word from slot to available tiles
+    var removedText = slots[slotIndex].text
+    slots[slotIndex] = { text: '', isCorrect: null }
+
+    // Mark the corresponding tile as available
+    for (var i = 0; i < tiles.length; i++) {
+      if (tiles[i].text === removedText && tiles[i].used) {
+        tiles[i] = { text: removedText, used: false }
+        break
+      }
+    }
+
+    this.setData({
+      wordSlots: slots,
+      availableTiles: tiles
+    })
+  },
+
+  _checkWordSelect: function () {
+    var item = this.data.stage4Item
+    var quiz = item.stage4_quiz || {}
+    var correctWords = (quiz.correct_phrase || '').split(' ')
+    var slots = this.data.wordSlots
+
+    // Compare each slot with correct answer
+    var allCorrect = true
+    var checkedSlots = slots.map(function (slot, i) {
+      var correct = (slot.text || '').toLowerCase() === (correctWords[i] || '').toLowerCase()
+      if (!correct) allCorrect = false
+      return { text: slot.text, isCorrect: correct }
+    })
+
+    this.setData({
+      wordSlots: checkedSlots,
+      wordSelectSubmitted: true,
       stage4Flipped: true
     }, this._saveDraft.bind(this))
-    if (isCorrect) {
+
+    if (allCorrect) {
       wx.vibrateShort({ type: 'light' })
-      this._playItemAudio(this.data.stage4Item)
+      this._playItemAudio(item)
       if (this._correctAudio) { this._correctAudio.stop(); this._correctAudio.play() }
     } else {
       wx.vibrateShort({ type: 'heavy' })
@@ -551,9 +637,15 @@ Page({
     }
   },
 
-  onSpellingNext: function () {
-    if (!this.data.spellingSubmitted) return
-    this._recordStage4Mastery(this.data.spellingCorrect ? 4 : 0)
+  onWordSelectNext: function () {
+    if (!this.data.wordSelectSubmitted) return
+    // Check if all correct
+    var slots = this.data.wordSlots
+    var allCorrect = true
+    for (var i = 0; i < slots.length; i++) {
+      if (!slots[i].isCorrect) { allCorrect = false; break }
+    }
+    this._recordStage4Mastery(allCorrect ? 4 : 0)
   },
 
   _recordStage4Mastery: function (mastery) {
@@ -575,15 +667,29 @@ Page({
       this._submitAndShowReport(results)
     } else {
       var nextItem = this.data.stage4Items[nextIndex]
+      var nextMode = this._getStage4Mode(nextItem)
+      var nextSlots = []
+      var nextTiles = []
+
+      if (nextMode === 'word_select' && nextItem.stage4_quiz) {
+        var correctWords = (nextItem.stage4_quiz.correct_phrase || '').split(' ')
+        for (var i = 0; i < correctWords.length; i++) {
+          nextSlots.push({ text: '', isCorrect: null })
+        }
+        nextTiles = nextItem.stage4_quiz.word_tiles.map(function (t) {
+          return { text: t, used: false }
+        })
+      }
+
       this.setData({
         masteryResults: results,
         stage4Index: nextIndex,
         stage4Item: nextItem,
         stage4Flipped: false,
-        stage4Mode: this._getStage4Mode(nextIndex),
-        spellingInput: '',
-        spellingSubmitted: false,
-        spellingCorrect: false
+        stage4Mode: nextMode,
+        wordSlots: nextSlots,
+        availableTiles: nextTiles,
+        wordSelectSubmitted: false
       }, this._saveDraft.bind(this))
     }
   },
@@ -627,9 +733,9 @@ Page({
       stage4Item: this.data.stage4Item,
       stage4Flipped: this.data.stage4Flipped,
       stage4Mode: this.data.stage4Mode,
-      spellingInput: this.data.spellingInput,
-      spellingSubmitted: this.data.spellingSubmitted,
-      spellingCorrect: this.data.spellingCorrect,
+      wordSlots: this.data.wordSlots,
+      availableTiles: this.data.availableTiles,
+      wordSelectSubmitted: this.data.wordSelectSubmitted,
       startTime: this.data.startTime,
       firstPassCorrect: this.data.firstPassCorrect,
       retryCorrect: this.data.retryCorrect,
@@ -682,10 +788,10 @@ Page({
       stage4Index: draft.stage4Index || 0,
       stage4Item: draft.stage4Item || null,
       stage4Flipped: !!draft.stage4Flipped,
-      stage4Mode: draft.stage4Mode || this._getStage4Mode(draft.stage4Index || 0),
-      spellingInput: draft.spellingInput || '',
-      spellingSubmitted: !!draft.spellingSubmitted,
-      spellingCorrect: !!draft.spellingCorrect,
+      stage4Mode: draft.stage4Mode || this._getStage4Mode(draft.stage4Item || null),
+      wordSlots: draft.wordSlots || [],
+      availableTiles: draft.availableTiles || [],
+      wordSelectSubmitted: !!draft.wordSelectSubmitted,
       startTime: draft.startTime || Date.now(),
       firstPassCorrect: draft.firstPassCorrect || 0,
       retryCorrect: draft.retryCorrect || 0,

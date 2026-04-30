@@ -143,7 +143,7 @@ def _build_word_phonetic_question(word: Word, word_pool: list[Word]) -> Optional
     )
 
 
-def _build_phrase_fill_input_question(phrase: Phrase) -> Optional[QuizQuestion]:
+def _build_phrase_fill_input_question(phrase: Phrase, phrase_pool: list[Phrase] = None) -> Optional[QuizQuestion]:
     example = next((item for item in _get_phrase_examples(phrase) if _normalize_answer(phrase.phrase) in _normalize_answer(item)), None)
     if not example:
         return None
@@ -152,12 +152,30 @@ def _build_phrase_fill_input_question(phrase: Phrase) -> Optional[QuizQuestion]:
     if blanked == example:
         return None
 
+    # Build candidate options (correct phrase + 3 distractors)
+    if phrase_pool:
+        all_texts = list(set(p.phrase for p in phrase_pool if p.phrase and _normalize_answer(p.phrase) != _normalize_answer(phrase.phrase)))
+        random.shuffle(all_texts)
+        distractors = all_texts[:3]
+    else:
+        distractors = []
+
+    options_raw = [phrase.phrase] + distractors
+    random.shuffle(options_raw)
+    options = [
+        QuizOption(key=chr(65 + i), text=text, is_answer=_normalize_answer(text) == _normalize_answer(phrase.phrase))
+        for i, text in enumerate(options_raw)
+    ]
+
+    if len(options) < 2:
+        return None
+
     return QuizQuestion(
         question_id=phrase.id,
         question_type="phrase_fill_input",
-        interaction_type="text_input",
-        prompt=f"补全短语：\n{blanked}",
-        placeholder="请输入完整短语",
+        interaction_type="word_select",
+        prompt=f"选择正确的短语填入空白处：\n{blanked}",
+        options=options,
         accepted_answers=[phrase.phrase],
         hint=get_phrase_learning_explanation(phrase),
         item_type="phrase",
@@ -179,7 +197,7 @@ def _question_from_item(
         return _build_word_phonetic_question(word, word_pool) if word and word.phonetic else None
     if question_type == "phrase_fill_input":
         phrase = db.query(Phrase).filter(Phrase.id == question_id).first()
-        return _build_phrase_fill_input_question(phrase) if phrase else None
+        return _build_phrase_fill_input_question(phrase, phrase_pool) if phrase else None
     return None
 
 
@@ -262,7 +280,7 @@ async def get_quiz_themes(db: Session = Depends(get_db)):
             word for word in (content.words or [])
             if word.phonetic and _build_word_phonetic_question(word, content.words or [])
         ])
-        phrase_fill_count = len([phrase for phrase in content.phrases or [] if _build_phrase_fill_input_question(phrase)])
+        phrase_fill_count = len([phrase for phrase in content.phrases or [] if _build_phrase_fill_input_question(phrase, content.phrases or [])])
         items.append(
             QuizThemeItem(
                 content_id=content.id,
@@ -357,7 +375,7 @@ async def generate_quiz(
 
     if "phrase_fill_input" in question_types:
         for phrase in phrase_pool:
-            question = _build_phrase_fill_input_question(phrase)
+            question = _build_phrase_fill_input_question(phrase, phrase_pool)
             if question:
                 questions.append(question)
 

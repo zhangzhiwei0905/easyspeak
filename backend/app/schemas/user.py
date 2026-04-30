@@ -1,6 +1,6 @@
 """Pydantic schemas for user auth and progress."""
 from pydantic import BaseModel
-from typing import Optional
+from typing import Any, Optional
 from datetime import date, datetime
 
 
@@ -60,6 +60,7 @@ class ReviewMemorySummary(BaseModel):
 
 class ReviewOverviewResponse(BaseModel):
     due_count: int = 0
+    today_review_count: int = 0
     calendar_dates: list[CalendarDayDetail] = []
     memory_summary: ReviewMemorySummary = ReviewMemorySummary()
 
@@ -87,6 +88,9 @@ class ReviewItem(BaseModel):
     source: Optional[str] = None
     part_of_speech: Optional[str] = None
     next_review_at: Optional[datetime] = None
+    stage2_quiz: Optional[dict[str, Any]] = None
+    stage3_quiz: Optional[dict[str, Any]] = None
+    final_quiz: Optional[dict[str, Any]] = None
 
 
 class ReviewDueResponse(BaseModel):

@@ -115,7 +115,7 @@
     </block>
   </view>
 
-  <scroll-view class="category-filter" scroll-x="true" show-scrollbar="false">
+  <scroll-view class="category-filter" scroll-x="true" show-scrollbar="false" wx:if="{{!searchActive && !searchKeyword}}">
     <view class="category-filter__inner">
       <view class="category-filter__chip {{selectedCategory === item.key ? 'category-filter__chip--active' : ''}}"
             wx:for="{{categoryFilters}}"

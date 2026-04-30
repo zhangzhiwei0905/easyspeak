@@ -14,6 +14,7 @@ class Word(Base):
     part_of_speech = Column(String(50))
     meaning = Column(Text)
     example = Column(Text)
+    example_cn = Column(Text)
     sort_order = Column(Integer, default=0)
 
     content = relationship("DailyContent", back_populates="words")

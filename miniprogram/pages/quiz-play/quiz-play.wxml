@@ -73,16 +73,23 @@
         </view>
       </view>
 
-      <view class="quiz-play__input-wrap" wx:if="{{interactionType === 'text_input'}}">
-        <input
-          class="quiz-play__input"
-          type="text"
-          value="{{inputAnswer}}"
-          placeholder="{{placeholder || '请输入答案'}}"
-          disabled="{{submitted}}"
-          bindinput="onInputAnswer"
-        />
-        <text class="quiz-play__input-hint">答案会忽略大小写，并自动合并多余空格</text>
+      <!-- word_select: 多邻国风格短语选择 -->
+      <view class="quiz-play__word-select" wx:if="{{interactionType === 'word_select'}}">
+        <!-- 句子展示区（空白替换为选中词或占位） -->
+        <view class="quiz-play__sentence">
+          <text>{{prompt}}</text>
+        </view>
+        <!-- 候选词区 -->
+        <view class="quiz-play__candidates">
+          <view 
+            class="quiz-play__chip {{selectedKey === item.key ? 'quiz-play__chip--selected' : ''}} {{submitted && item.isAnswer ? 'quiz-play__chip--correct' : ''}} {{submitted && selectedKey === item.key && !isCorrect ? 'quiz-play__chip--wrong' : ''}}"
+            wx:for="{{options}}"
+            wx:key="key"
+            data-key="{{item.key}}"
+            bindtap="onSelectOption">
+            <text>{{item.text}}</text>
+          </view>
+        </view>
       </view>
 
       <view class="quiz-play__feedback" wx:if="{{submitted}}">

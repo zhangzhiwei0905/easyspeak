@@ -42,15 +42,29 @@ router = APIRouter()
 CHINESE_DISTRACTOR_FALLBACKS = ["不太符合", "暂不确定", "无法判断"]
 
 
+def _normalize_text(text: str) -> str:
+    """Normalize text for comparison: lowercase, collapse whitespace, strip punctuation."""
+    return re.sub(r'[^\w\s]', '', (text or "").strip().lower())
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 def _get_distractors(correct: str, pool: list[str], count: int = 3) -> list[str]:
     """Pick random distractors that differ from the correct answer."""
-    candidates = [item for item in pool if item and item.strip().lower() != correct.strip().lower()]
-    random.shuffle(candidates)
-    return candidates[:count]
+    # Dedupe pool first to avoid picking duplicates
+    seen = {correct.strip().lower()}
+    unique_pool = []
+    for item in pool:
+        if not item:
+            continue
+        key = item.strip().lower()
+        if key not in seen:
+            seen.add(key)
+            unique_pool.append(item.strip())
+    random.shuffle(unique_pool)
+    return unique_pool[:count]
 
 
 def _contains_cjk(text: str) -> bool:
@@ -237,7 +251,7 @@ def _phrase_stage2_quiz(p: Phrase, idx: int, meaning: str, all_explanations, all
 
     else:
         # Type C: 例句理解 — show example sentence, ask what phrase means
-        if example_en:
+        if example_en and _normalize_text(example_en) != _normalize_text(p.phrase):
             distractors = _get_distractors(meaning, all_explanations)
             return _make_quiz(
                 question=f'在句子 {example_en} 中，{p.phrase} 最可能的意思是？',
@@ -245,7 +259,7 @@ def _phrase_stage2_quiz(p: Phrase, idx: int, meaning: str, all_explanations, all
                 distractors=distractors,
             )
         else:
-            # Fallback to Type A
+            # Fallback to Type A (example is same as phrase or missing)
             distractors = _get_distractors(meaning, all_explanations)
             return _make_quiz(
                 question=f'{p.phrase} 是什么意思？',

@@ -487,7 +487,7 @@
   padding: 24rpx;
   background: #ffffff;
   border: 1rpx solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 28rpx;
   box-shadow: 0 6rpx 18rpx rgba(102, 126, 234, 0.08);
 }
 

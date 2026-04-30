@@ -20,7 +20,8 @@ var KEYS = {
   LAST_STUDY_DATE: 'easyspeak_last_study_date',
   STREAK_DAYS: 'easyspeak_streak_days',
   WORD_MASTERY_CACHE: 'easyspeak_word_mastery_cache',
-  LEARN_SESSION_DRAFT: 'easyspeak_learn_session_draft'
+  LEARN_SESSION_DRAFT: 'easyspeak_learn_session_draft',
+  ACHIEVEMENTS: 'easyspeak_achievements'
 }
 
 /* ========================================

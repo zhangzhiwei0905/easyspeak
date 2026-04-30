@@ -52,6 +52,9 @@ Page({
     // Progress
     phraseProgress: { current: 0, total: 5 },
     wordProgress: { current: 0, total: 20 },
+    canLearnPhrase: true,
+    canLearnWord: true,
+    allLearnedToday: false,
 
     // Review
     reviewDueCount: 0,
@@ -125,7 +128,9 @@ Page({
       if (cached) {
         console.log('[Index] Using cached data for', dateStr)
         self._processData(cached)
-        self._loadTomorrowTheme(dateStr)
+        if (self.data.isToday && cached.tomorrow) {
+          self._processTomorrowDataFromResponse(cached.tomorrow)
+        }
         self.setData({ loading: false })
         // Still fetch in background to refresh cache
         self._fetchFromServer(dateStr)
@@ -151,7 +156,12 @@ Page({
       // Cache the result
       storage.setDailyCache(dateStr, data)
       self._processData(data)
-      self._loadTomorrowTheme(dateStr)
+      // Use tomorrow data from API response (no extra request needed)
+      if (self.data.isToday && data && data.tomorrow) {
+        self._processTomorrowDataFromResponse(data.tomorrow)
+      } else {
+        self.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
+      }
       self.setData({ loading: false, refreshing: false })
     }).catch(function (err) {
       console.error('[Index] Fetch failed:', err)
@@ -165,50 +175,33 @@ Page({
       var cached = storage.getDailyCache(dateStr)
       if (cached) {
         self._processData(cached)
-        self._loadTomorrowTheme(dateStr)
+        if (self.data.isToday && cached.tomorrow) {
+          self._processTomorrowDataFromResponse(cached.tomorrow)
+        }
         self.setData({ error: false })
       }
     })
   },
 
-  _loadTomorrowTheme: function (baseDateStr) {
-    var self = this
-    if (!this.data.isToday) {
-      self.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
+  _processTomorrowDataFromResponse: function (tomorrow) {
+    if (!tomorrow || !tomorrow.theme_zh) {
+      this.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
       return
     }
-    var tomorrow = new Date(baseDateStr + 'T00:00:00')
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    var tomorrowStr = formatDateStr(tomorrow)
-    var cached = storage.getDailyCache(tomorrowStr)
-    if (cached) {
-      self._processTomorrowData(tomorrowStr, cached)
-      return
-    }
-    api.get('/daily/today', { target_date: tomorrowStr }).then(function (data) {
-      storage.setDailyCache(tomorrowStr, data)
-      self._processTomorrowData(tomorrowStr, data)
-    }).catch(function () {
-      self.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
+    // Calculate tomorrow's date display
+    var tomorrowDate = new Date()
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    var tomorrowStr = formatDateStr(tomorrowDate)
+    this.setData({
+      tomorrowTheme: {
+        theme_zh: tomorrow.theme_zh || '',
+        theme_en: tomorrow.theme_en || '',
+        category_zh: tomorrow.category_zh || ''
+      },
+      tomorrowDateDisplay: formatDisplayDate(tomorrowStr),
+      tomorrowWeekday: getWeekday(tomorrowStr)
     })
   },
-
- _processTomorrowData: function (dateStr, data) {
- var content = data && data.content
- if (!content) {
- this.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
- return
- }
- this.setData({
- tomorrowTheme: {
- theme_zh: content.theme_zh || '',
- theme_en: content.theme_en || '',
- category_zh: content.category_zh || ''
- },
- tomorrowDateDisplay: formatDisplayDate(dateStr),
- tomorrowWeekday: getWeekday(dateStr)
- })
- },
 
  _processData: function (data) {
  if (!data || !data.content) {
@@ -253,15 +246,24 @@ Page({
 
     // Progress
     var progress = data.progress || {}
+    var phraseCurrent = progress.phrases_learned || 0
+    var phraseTotal = progress.phrases_total || phrases.length
+    var wordCurrent = progress.words_learned || 0
+    var wordTotal = progress.words_total || words.length
+    var canLearnPhrase = phraseTotal > 0 ? phraseCurrent < phraseTotal : false
+    var canLearnWord = wordTotal > 0 ? wordCurrent < wordTotal : false
     this.setData({
       phraseProgress: {
-        current: progress.phrases_learned || 0,
-        total: progress.phrases_total || phrases.length
+        current: phraseCurrent,
+        total: phraseTotal
       },
       wordProgress: {
-        current: progress.words_learned || 0,
-        total: progress.words_total || words.length
-      }
+        current: wordCurrent,
+        total: wordTotal
+      },
+      canLearnPhrase: canLearnPhrase,
+      canLearnWord: canLearnWord,
+      allLearnedToday: phraseTotal > 0 && wordTotal > 0 && !canLearnPhrase && !canLearnWord
     })
 
     // Review

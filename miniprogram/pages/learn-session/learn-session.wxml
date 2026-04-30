@@ -170,20 +170,39 @@
         </view>
       </view>
 
-      <view class="mastery__spelling" wx:if="{{stage4Mode === 'spelling'}}">
-        <text class="mastery__spelling-label">请拼写出英文答案</text>
-        <input class="mastery__spelling-input"
-               value="{{spellingInput}}"
-               bindinput="onSpellingInput"
-               disabled="{{spellingSubmitted}}"
-               placeholder="输入英文{{learnType === 'phrase' ? '短语' : '单词'}}" />
-        <view class="mastery__spelling-result {{spellingCorrect ? 'mastery__spelling-result--correct' : 'mastery__spelling-result--wrong'}}" wx:if="{{spellingSubmitted}}">
-          <text>{{spellingCorrect ? '拼写正确！' : '拼写不对，正确答案如下'}}</text>
-        </view>
-        <view class="stage-action" wx:if="{{!spellingSubmitted}}">
-          <view class="btn btn-primary" bindtap="onSubmitSpelling">
-            <text class="btn__text">提交拼写</text>
+      <view class="mastery__word-select" wx:if="{{stage4Mode === 'word_select'}}">
+        <text class="mastery__ws-label">请选择正确的单词组成短语</text>
+
+        <!-- Answer slots -->
+        <view class="mastery__ws-slots">
+          <view class="mastery__ws-slot {{slot.isCorrect === true ? 'mastery__ws-slot--correct' : ''}} {{slot.isCorrect === false ? 'mastery__ws-slot--wrong' : ''}} {{slot.text && !wordSelectSubmitted ? 'mastery__ws-slot--filled' : ''}}"
+                wx:for="{{wordSlots}}"
+                wx:for-item="slot"
+                wx:key="index"
+                data-index="{{index}}"
+                bindtap="onSlotTap">
+            <text wx:if="{{slot.text}}">{{slot.text}}</text>
+            <text wx:else class="mastery__ws-slot-placeholder">+</text>
           </view>
+        </view>
+
+        <!-- Next button after submission -->
+        <view class="stage-action" wx:if="{{wordSelectSubmitted}}">
+          <view class="btn btn-next" bindtap="onWordSelectNext">
+            <text class="btn__text">下一题 →</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Available word tiles -->
+      <view class="mastery__ws-tiles" wx:if="{{stage4Mode === 'word_select' && !wordSelectSubmitted}}">
+        <view class="mastery__ws-tile {{tile.used ? 'mastery__ws-tile--used' : ''}}"
+              wx:for="{{availableTiles}}"
+              wx:for-item="tile"
+              wx:key="index"
+              data-index="{{index}}"
+              bindtap="onWordTileTap">
+          <text>{{tile.text}}</text>
         </view>
       </view>
 
@@ -221,12 +240,6 @@
           </view>
         </view>
         </block>
-
-        <view class="stage-action" wx:if="{{stage4Mode === 'spelling' && spellingSubmitted}}">
-          <view class="btn btn-next" bindtap="onSpellingNext">
-            <text class="btn__text">下一题 →</text>
-          </view>
-        </view>
       </view>
     </view>
 

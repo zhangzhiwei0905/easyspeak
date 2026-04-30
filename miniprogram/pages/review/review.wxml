@@ -1,8 +1,37 @@
 <view class="review-page" wx:if="{{mode === 'overview'}}">
-  <view class="review-header">
-    <text class="review-header__icon">🧠</text>
-    <text class="review-header__title">智能复习</text>
-    <text class="review-header__subtitle">基于间隔重复算法的高效复习</text>
+  <view class="review-header {{!loading && !overviewLoadFailed && dueCount === 0 ? 'review-header--completed' : ''}}">
+    <view class="review-header__glow review-header__glow--one"></view>
+    <view class="review-header__glow review-header__glow--two"></view>
+
+    <view class="review-header__content">
+      <view class="review-header__topline">
+        <view class="review-header__icon-wrap">
+          <text class="review-header__icon">{{!loading && !overviewLoadFailed && dueCount === 0 ? '✅' : '🧠'}}</text>
+        </view>
+        <text class="review-header__tag">Spaced Repetition</text>
+      </view>
+
+      <text class="review-header__title" wx:if="{{loading}}">智能复习</text>
+      <text class="review-header__title" wx:elif="{{overviewLoadFailed}}">复习状态待同步</text>
+      <text class="review-header__title" wx:elif="{{dueCount > 0}}">该给记忆充充电了</text>
+      <text class="review-header__title" wx:else>今天的记忆状态很好</text>
+
+      <text class="review-header__subtitle" wx:if="{{loading}}">正在同步你的复习计划...</text>
+      <text class="review-header__subtitle" wx:elif="{{overviewLoadFailed}}">复习状态加载失败，点击下方按钮重试</text>
+      <text class="review-header__subtitle" wx:elif="{{todayReviewCount > 0}}">今天共有 {{todayReviewCount}} 项要复习</text>
+      <text class="review-header__subtitle" wx:else>当日复习内容已完成，明天再来巩固一下</text>
+
+      <view class="review-header__status">
+        <text class="review-header__status-label" wx:if="{{loading}}">今日状态</text>
+        <text class="review-header__status-label" wx:elif="{{overviewLoadFailed}}">同步状态</text>
+        <text class="review-header__status-label" wx:elif="{{todayReviewCount > 0}}">今日复习</text>
+        <text class="review-header__status-label" wx:else>今日状态</text>
+        <text class="review-header__status-value" wx:if="{{loading}}">同步中</text>
+        <text class="review-header__status-value" wx:elif="{{overviewLoadFailed}}">待重试</text>
+        <text class="review-header__status-value" wx:elif="{{todayReviewCount > 0}}">{{todayReviewCount}} 项</text>
+        <text class="review-header__status-value" wx:else>已完成</text>
+      </view>
+    </view>
   </view>
 
   <view class="review-section">
@@ -66,6 +95,7 @@
   <view class="review-action">
     <button
       class="review-btn {{loading ? 'review-btn--disabled' : 'review-btn--active'}}"
+      wx:if="{{loading || overviewLoadFailed || dueCount > 0}}"
       bindtap="startReview"
       disabled="{{loading}}"
     >
@@ -73,15 +103,13 @@
       <text class="review-btn__text">开始复习</text>
       <text class="review-btn__count" wx:if="{{loading}}">加载中...</text>
       <text class="review-btn__count" wx:elif="{{overviewLoadFailed}}">点击重试</text>
-      <text class="review-btn__count" wx:elif="{{dueCount > 0}}">{{dueCount}}项待复习</text>
-      <text class="review-btn__count" wx:else>点击检查待复习</text>
+      <text class="review-btn__count" wx:else>{{dueCount}}项要复习</text>
     </button>
+    <view class="review-completed-text" wx:else>
+      <text>✅ 当日复习内容已完成</text>
+    </view>
   </view>
 
-  <view class="review-empty" wx:if="{{!loading && dueCount === 0}}">
-    <text class="review-empty__text">😊 今日暂无待复习内容</text>
-    <text class="review-empty__hint">快去首页学习新内容吧！</text>
-  </view>
 
   <view class="review-loading" wx:if="{{loading}}">
     <view class="review-loading__spinner"></view>
@@ -95,98 +123,123 @@
       <view class="session-header__back" bindtap="exitSession">
         <text>✕</text>
       </view>
-      <text class="session-header__title">复习中</text>
+      <text class="session-header__title">复习测验 · {{reviewStageLabel}}</text>
       <view class="session-header__placeholder"></view>
     </view>
     <view class="session-header__progress-text">
-      <text>第 {{currentIndex + 1}} / {{dueItems.length}} 项</text>
+      <text>第 {{currentIndex + 1}} / {{totalQuestionCount}} 题 · {{currentItem.text}}</text>
     </view>
     <progress-bar
-      current="{{currentIndex}}"
-      total="{{dueItems.length}}"
+      current="{{currentIndex + 1}}"
+      total="{{totalQuestionCount}}"
       color="#667eea"
       height="{{12}}"
     />
   </view>
 
-  <view class="session-card-area">
-    <view class="flip-card" bindtap="flipCard">
-      <view class="flip-card__inner {{isFlipped ? 'flip-card__inner--flipped' : ''}}">
-        <view class="flip-card__face flip-card__face--front">
-          <view class="flip-card__front-content">
-            <view class="flip-card__type-badge" wx:if="{{currentItem.item_type === 'phrase'}}">
-              <text>💬 短语</text>
-            </view>
-            <view class="flip-card__type-badge flip-card__type-badge--word" wx:if="{{currentItem.item_type === 'word'}}">
-              <text>📖 单词</text>
-            </view>
-            <text class="flip-card__text">{{currentItem.text}}</text>
-            <text class="flip-card__phonetic" wx:if="{{currentItem.phonetic}}">{{currentItem.phonetic}}</text>
-            <text class="flip-card__hint">点击翻转查看释义 →</text>
+  <view class="review-quiz-card">
+    <view class="review-quiz-card__badge {{currentItem.item_type === 'word' ? 'review-quiz-card__badge--word' : ''}}">
+      <text>{{currentItem.item_type === 'phrase' ? '💬 短语' : '📖 单词'}}</text>
+    </view>
+
+    <block wx:if="{{reviewStage === 2 || reviewStage === 3}}">
+      <text class="review-quiz-card__hint">{{quizData.hint || (reviewStage === 2 ? '根据中文选择英文' : '根据英文句子选择中文')}}</text>
+      <text class="review-quiz-card__question">{{quizData.question}}</text>
+
+      <view class="review-options">
+        <view
+          class="review-option {{selectedKey === item.key ? 'review-option--selected' : ''}} {{submitted && item.key === quizData.answer ? 'review-option--correct' : ''}} {{submitted && selectedKey === item.key && item.key !== quizData.answer ? 'review-option--wrong' : ''}}"
+          wx:for="{{quizData.options}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="onReviewSelectOption"
+        >
+          <text class="review-option__key">{{item.key}}</text>
+          <text class="review-option__text">{{item.text}}</text>
+        </view>
+      </view>
+
+      <view class="review-feedback {{isCorrect ? 'review-feedback--correct' : 'review-feedback--wrong'}}" wx:if="{{submitted}}">
+        <text>{{isCorrect ? '✅ 答对了' : '❌ 正确答案：' + correctOptionText}}</text>
+      </view>
+
+      <button
+        class="review-next-btn"
+        wx:if="{{!submitted}}"
+        bindtap="onReviewSubmitChoice"
+      >提交答案</button>
+      <button
+        class="review-next-btn review-next-btn--active"
+        wx:else
+        bindtap="onReviewChoiceNext"
+      >继续</button>
+    </block>
+
+    <block wx:if="{{reviewStage === 4}}">
+      <text class="review-quiz-card__hint">最终确认</text>
+      <text class="review-quiz-card__question">{{finalQuiz.prompt}}</text>
+
+      <block wx:if="{{finalQuiz.type === 'word_select'}}">
+        <view class="review-slots">
+          <view
+            class="review-slot {{slot.isCorrect === true ? 'review-slot--correct' : ''}} {{slot.isCorrect === false ? 'review-slot--wrong' : ''}}"
+            wx:for="{{wordSlots}}"
+            wx:for-item="slot"
+            wx:key="index"
+            data-index="{{index}}"
+            bindtap="onReviewSlotTap"
+          >
+            <text>{{slot.text || ' '}}</text>
           </view>
         </view>
-
-        <view class="flip-card__face flip-card__face--back">
-          <scroll-view class="flip-card__back-scroll" scroll-y="true">
-            <view class="flip-card__back-content">
-              <view class="flip-card__back-header">
-                <text class="flip-card__back-text">{{currentItem.text}}</text>
-                <text class="flip-card__back-pos" wx:if="{{currentItem.part_of_speech}}">{{currentItem.part_of_speech}}</text>
-              </view>
-
-              <view class="flip-card__meaning-block">
-                <text class="flip-card__meaning-label">释义</text>
-                <text class="flip-card__meaning">{{currentItem.meaning || currentItem.explanation || '暂无释义'}}</text>
-              </view>
-
-              <view class="flip-card__explanation-block" wx:if="{{currentItem.explanation}}">
-                <text class="flip-card__explanation-label">📖 解读</text>
-                <text class="flip-card__explanation">{{currentItem.explanation}}</text>
-              </view>
-
-              <view class="flip-card__examples-block" wx:if="{{currentItem.examples && currentItem.examples.length > 0}}">
-                <text class="flip-card__examples-label">📝 例句</text>
-                <view class="flip-card__example" wx:for="{{currentItem.examples}}" wx:key="index">
-                  <text class="flip-card__example-text">{{item}}</text>
-                </view>
-              </view>
-
-              <view class="flip-card__source-block" wx:if="{{currentItem.source}}">
-                <text class="flip-card__source">🎬 来源: {{currentItem.source}}</text>
-              </view>
-
-              <text class="flip-card__hint-back">点击翻回正面 →</text>
-            </view>
-          </scroll-view>
+        <view class="review-keyboard">
+          <view
+            class="review-key {{tile.used ? 'review-key--used' : ''}}"
+            wx:for="{{availableTiles}}"
+            wx:for-item="tile"
+            wx:key="index"
+            data-index="{{index}}"
+            bindtap="onReviewWordTileTap"
+          >{{tile.text}}</view>
         </view>
-      </view>
-    </view>
-  </view>
+        <view class="review-feedback {{wordSelectSubmitted && wordSlots[0].isCorrect ? 'review-feedback--correct' : 'review-feedback--wrong'}}" wx:if="{{wordSelectSubmitted}}">
+          <text>正确短语：{{finalQuiz.correct_phrase}}</text>
+        </view>
+      </block>
 
-  <view class="mastery-area {{isFlipped ? 'mastery-area--visible' : ''}}">
-    <text class="mastery-area__label">你的掌握程度：</text>
-    <view class="mastery-buttons">
-      <view class="mastery-btn mastery-btn--0" data-mastery="{{0}}" bindtap="selectMastery">
-        <text class="mastery-btn__emoji">😫</text>
-        <text class="mastery-btn__label">完全忘了</text>
-      </view>
-      <view class="mastery-btn mastery-btn--1" data-mastery="{{1}}" bindtap="selectMastery">
-        <text class="mastery-btn__emoji">😕</text>
-        <text class="mastery-btn__label">有点印象</text>
-      </view>
-      <view class="mastery-btn mastery-btn--2" data-mastery="{{2}}" bindtap="selectMastery">
-        <text class="mastery-btn__emoji">🤔</text>
-        <text class="mastery-btn__label">想起来了</text>
-      </view>
-      <view class="mastery-btn mastery-btn--3" data-mastery="{{3}}" bindtap="selectMastery">
-        <text class="mastery-btn__emoji">😊</text>
-        <text class="mastery-btn__label">比较熟悉</text>
-      </view>
-      <view class="mastery-btn mastery-btn--4" data-mastery="{{4}}" bindtap="selectMastery">
-        <text class="mastery-btn__emoji">🎯</text>
-        <text class="mastery-btn__label">完全掌握</text>
-      </view>
-    </view>
+      <block wx:if="{{finalQuiz.type === 'spelling_keyboard'}}">
+        <view class="review-slots review-slots--letters">
+          <view
+            class="review-slot review-slot--letter {{slot.isCorrect === true ? 'review-slot--correct' : ''}} {{slot.isCorrect === false ? 'review-slot--wrong' : ''}}"
+            wx:for="{{spellingSlots}}"
+            wx:for-item="slot"
+            wx:key="index"
+            data-index="{{index}}"
+            bindtap="onSpellingSlotTap"
+          >
+            <text>{{slot.text || ' '}}</text>
+          </view>
+        </view>
+        <view class="review-keyboard review-keyboard--letters">
+          <view
+            class="review-key review-key--letter {{letter.used ? 'review-key--used' : ''}}"
+            wx:for="{{keyboardLetters}}"
+            wx:for-item="letter"
+            wx:key="index"
+            data-index="{{index}}"
+            bindtap="onKeyboardLetterTap"
+          >{{letter.text}}</view>
+        </view>
+        <view class="review-feedback {{spellingCorrect ? 'review-feedback--correct' : 'review-feedback--wrong'}}" wx:if="{{spellingSubmitted}}">
+          <text>{{spellingCorrect ? '✅ 拼写正确' : '❌ 正确拼写：' + finalQuiz.answer}}</text>
+        </view>
+      </block>
+
+      <button
+        class="review-next-btn {{(wordSelectSubmitted || spellingSubmitted) ? 'review-next-btn--active' : 'review-next-btn--disabled'}}"
+        bindtap="onFinalNext"
+      >继续</button>
+    </block>
   </view>
 
   <view class="session-submitting" wx:if="{{submitting}}">

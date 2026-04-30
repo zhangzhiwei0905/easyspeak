@@ -457,41 +457,124 @@
   padding: 32rpx 0 0;
 }
 
-.mastery__spelling {
+/* ============================================
+   Stage 4: Word Select (Duolingo-style)
+   ============================================ */
+.mastery__word-select {
   padding: 8rpx 20rpx 0;
 }
 
-.mastery__spelling-label {
+.mastery__ws-label {
   display: block;
   font-size: 26rpx;
   color: #667085;
-  margin-bottom: 16rpx;
+  margin-bottom: 24rpx;
   text-align: center;
 }
 
-.mastery__spelling-input {
-  height: 96rpx;
-  padding: 0 28rpx;
-  border-radius: 20rpx;
-  background: #ffffff;
-  border: 2rpx solid #d0d5dd;
-  font-size: 32rpx;
+/* Answer slots */
+.mastery__ws-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  justify-content: center;
+  padding: 20rpx 0;
+  min-height: 96rpx;
+}
+
+.mastery__ws-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80rpx;
+  height: 80rpx;
+  padding: 12rpx 24rpx;
+  border-radius: 16rpx;
+  background: #f8f9fc;
+  border: 2rpx dashed #d0d5dd;
+  font-size: 30rpx;
   color: #1a1a2e;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.mastery__spelling-result {
-  margin-top: 16rpx;
-  text-align: center;
-  font-size: 26rpx;
-  font-weight: 600;
+.mastery__ws-slot--filled {
+  background: rgba(102, 126, 234, 0.12);
+  border: 2rpx solid rgba(102, 126, 234, 0.4);
+  border-style: solid;
 }
 
-.mastery__spelling-result--correct {
+.mastery__ws-slot--correct {
+  background: rgba(63, 185, 80, 0.15) !important;
+  border: 2rpx solid rgba(63, 185, 80, 0.5) !important;
+  border-style: solid !important;
   color: #2e7d32;
 }
 
-.mastery__spelling-result--wrong {
+.mastery__ws-slot--wrong {
+  background: rgba(248, 81, 73, 0.12) !important;
+  border: 2rpx solid rgba(248, 81, 73, 0.4) !important;
+  border-style: solid !important;
   color: #d92d20;
+}
+
+.mastery__ws-slot-placeholder {
+  font-size: 36rpx;
+  color: #c0c5d0;
+  font-weight: 300;
+}
+
+/* Feedback */
+.mastery__ws-feedback {
+  padding: 16rpx 0 0;
+  text-align: center;
+}
+
+.mastery__ws-feedback--show {
+  animation: slideUp 0.3s ease;
+}
+
+.mastery__ws-feedback-text {
+  font-size: 26rpx;
+  color: #667eea;
+  font-weight: 500;
+}
+
+/* Available word tiles */
+.mastery__ws-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  justify-content: center;
+  padding: 24rpx 20rpx 0;
+}
+
+.mastery__ws-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 28rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 2rpx solid #d0d5dd;
+  font-size: 28rpx;
+  color: #344054;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 4rpx 12rpx rgba(16, 24, 40, 0.06);
+}
+
+.mastery__ws-tile:active {
+  transform: scale(0.95);
+  background: rgba(102, 126, 234, 0.08);
+  border-color: #667eea;
+}
+
+.mastery__ws-tile--used {
+  opacity: 0.25;
+  pointer-events: none;
+  background: #f0f2f5;
+  border-color: transparent;
 }
 
 .mastery__answer-card {

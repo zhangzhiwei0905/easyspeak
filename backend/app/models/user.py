@@ -42,3 +42,12 @@ class UserProgress(Base):
     def __repr__(self):
         item = self.word_id or self.phrase_id
         return f"<UserProgress {self.openid} item={item} mastery={self.mastery}>"
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    openid = Column(String(64), ForeignKey("users.openid"), nullable=False, index=True)
+    achievement_id = Column(String(50), nullable=False)
+    unlocked_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

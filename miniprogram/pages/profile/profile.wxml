@@ -56,14 +56,22 @@
     <view class="section-title-row">
       <text class="section-icon">🏆</text>
       <text class="section-title">成就徽章</text>
+      <text class="achievement-count">{{achievements.length}}/17</text>
     </view>
-    <view class="badges-grid">
-      <view class="badge-item {{item.unlocked ? 'badge-unlocked' : 'badge-locked'}}" wx:for="{{achievements}}" wx:key="id">
-        <view class="badge-icon-wrap">
-          <text class="badge-icon">{{item.icon}}</text>
+    <view class="achievement-categories">
+      <view class="achievement-category" wx:for="{{achievementGroups}}" wx:key="category">
+        <text class="category-title">{{item.category_zh}}</text>
+        <view class="badges-grid">
+          <view class="badge-item {{inner.unlocked ? 'badge-unlocked' : 'badge-locked'}}" wx:for="{{item.items}}" wx:for-item="inner" wx:key="id">
+            <view class="badge-icon-wrap">
+              <text class="badge-icon">{{inner.icon}}</text>
+              <view class="badge-check" wx:if="{{inner.unlocked}}">✓</view>
+            </view>
+            <text class="badge-name">{{inner.name}}</text>
+            <text class="badge-desc">{{inner.desc}}</text>
+            <text class="badge-date" wx:if="{{inner.unlocked && inner.unlocked_at_display}}">{{inner.unlocked_at_display}}</text>
+          </view>
         </view>
-        <text class="badge-name">{{item.name}}</text>
-        <text class="badge-desc">{{item.desc}}</text>
       </view>
     </view>
   </view>

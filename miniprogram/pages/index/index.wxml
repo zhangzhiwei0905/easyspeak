@@ -78,13 +78,16 @@
         <text class="push-card__stat">{{words.length}} 个单词</text>
       </view>
       <view class="push-card__actions" wx:if="{{isToday}}">
-        <view class="push-card__btn-group">
-          <view class="push-card__btn push-card__btn--phrase" bindtap="onStartLearnPhrase">
+        <view class="push-card__btn-group" wx:if="{{canLearnPhrase || canLearnWord}}">
+          <view class="push-card__btn push-card__btn--phrase" bindtap="onStartLearnPhrase" wx:if="{{canLearnPhrase}}">
             <text>📝 学短语</text>
           </view>
-          <view class="push-card__btn push-card__btn--word" bindtap="onStartLearnWord">
+          <view class="push-card__btn push-card__btn--word" bindtap="onStartLearnWord" wx:if="{{canLearnWord}}">
             <text>📚 学单词</text>
           </view>
+        </view>
+        <view class="push-card__stats" wx:if="{{allLearnedToday}}">
+          <text class="push-card__stat">✅ 今日学习已完成</text>
         </view>
         <view class="push-card__btn-detail" bindtap="onViewDetail">
           <text>查看详情 →</text>

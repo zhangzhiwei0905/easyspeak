@@ -2,6 +2,7 @@
 
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
@@ -28,8 +29,30 @@ from app.schemas.user import (
     ReviewOverviewResponse,
 )
 from app.utils.spaced_repetition import calculate_next_review_at
+from app.utils.phrase_meaning import get_phrase_short_meaning
+from app.routers.learn import _get_distractors, _make_quiz
 
 router = APIRouter()
+
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def _today_review_range(now: datetime) -> tuple[datetime, datetime]:
+    """Return the current Shanghai calendar day range in UTC."""
+    shanghai_now = now.astimezone(SHANGHAI_TZ)
+    start = datetime.combine(shanghai_now.date(), time.min, tzinfo=SHANGHAI_TZ)
+    end = start + timedelta(days=1)
+    return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+
+
+def _today_review_cutoff(now: datetime) -> datetime:
+    """Return the end of the current Shanghai day in UTC.
+
+    Review overview/due should be stable within a calendar day: anything that
+    becomes due later today is already included, instead of appearing only when
+    the exact minute arrives.
+    """
+    return _today_review_range(now)[1]
 
 
 def _month_range(year: int, month: int) -> tuple[datetime, datetime]:
@@ -44,13 +67,118 @@ def _month_range(year: int, month: int) -> tuple[datetime, datetime]:
     return start, end
 
 
+def _quiz_to_dict(quiz):
+    if not quiz:
+        return None
+    if hasattr(quiz, "model_dump"):
+        return quiz.model_dump()
+    return quiz.dict()
+
+
+def _split_phrase_words(text: str) -> list[str]:
+    return [part for part in (text or "").replace("/", " / ").split() if part]
+
+
+def _keyboard_letters(answer: str) -> list[str]:
+    letters = [ch.lower() for ch in (answer or "") if ch.isalpha()]
+    extras = list("etaoinshrdlucmfwypvbgkqjxz")
+    needed = max(0, 12 - len(letters))
+    pool = letters + extras[:needed]
+    # Stable-enough shuffle without importing another helper; order is not security-sensitive.
+    import random
+    random.shuffle(pool)
+    return pool[:max(12, len(letters))]
+
+
+def _build_phrase_review_quizzes(phrase: Phrase, all_phrases: list[Phrase]):
+    meaning = get_phrase_short_meaning(phrase) or phrase.meaning or ""
+    phrase_pool = [p.phrase for p in all_phrases if p.phrase]
+    meaning_pool = [get_phrase_short_meaning(p) or p.meaning for p in all_phrases if (get_phrase_short_meaning(p) or p.meaning)]
+    cn_examples = [p.example_1_cn or p.example_2_cn or p.example_3_cn for p in all_phrases]
+    cn_examples = [item for item in cn_examples if item]
+
+    stage2 = _make_quiz(
+        question=f'哪个英文短语表示「{meaning}」？',
+        correct_text=phrase.phrase,
+        distractors=_get_distractors(phrase.phrase, phrase_pool),
+        hint="根据中文选择英文",
+    )
+
+    example_en = phrase.example_1 or phrase.example_2 or phrase.example_3 or phrase.phrase
+    example_cn = phrase.example_1_cn or phrase.example_2_cn or phrase.example_3_cn or meaning
+    stage3 = _make_quiz(
+        question=f'请选择下面这句话的正确翻译：\n{example_en}',
+        correct_text=example_cn,
+        distractors=_get_distractors(example_cn, cn_examples or meaning_pool),
+        hint="根据英文句子选择中文翻译",
+    )
+
+    correct_words = _split_phrase_words(phrase.phrase)
+    distractor_words: list[str] = []
+    for other in phrase_pool:
+        if other == phrase.phrase:
+            continue
+        for word in _split_phrase_words(other):
+            if word.lower() not in {w.lower() for w in correct_words}:
+                distractor_words.append(word)
+            if len(distractor_words) >= 4:
+                break
+        if len(distractor_words) >= 4:
+            break
+    tiles = correct_words + distractor_words[:4]
+    import random
+    random.shuffle(tiles)
+    final_quiz = {
+        "type": "word_select",
+        "prompt": meaning or "请选择正确的单词组成短语",
+        "word_tiles": tiles,
+        "correct_phrase": phrase.phrase,
+    }
+    return _quiz_to_dict(stage2), _quiz_to_dict(stage3), final_quiz
+
+
+def _build_word_review_quizzes(word: Word, all_words: list[Word]):
+    word_pool = [w.word for w in all_words if w.word]
+    meaning_pool = [w.meaning for w in all_words if w.meaning]
+    cn_examples = [getattr(w, "example_cn", None) for w in all_words if getattr(w, "example_cn", None)]
+
+    stage2 = _make_quiz(
+        question=f'哪个英文单词表示「{word.meaning or ""}」？',
+        correct_text=word.word,
+        distractors=_get_distractors(word.word, word_pool),
+        hint="根据中文选择英文",
+    )
+
+    example_en = word.example or f"I want to use the word {word.word}."
+    example_cn = getattr(word, "example_cn", None) or f"我想使用 {word.word} 这个单词。"
+    stage3 = _make_quiz(
+        question=f'请选择下面这句话的正确翻译：\n{example_en}',
+        correct_text=example_cn,
+        distractors=_get_distractors(example_cn, cn_examples or meaning_pool),
+        hint="根据英文句子选择中文翻译",
+    )
+
+    final_quiz = {
+        "type": "spelling_keyboard",
+        "prompt": word.meaning or "请拼写这个单词",
+        "answer": word.word,
+        "letters": _keyboard_letters(word.word),
+    }
+    return _quiz_to_dict(stage2), _quiz_to_dict(stage3), final_quiz
+
+
 def _build_review_item(
     record: UserProgress,
     phrase: Optional[Phrase],
     word: Optional[Word],
+    phrase_pool: Optional[list[Phrase]] = None,
+    word_pool: Optional[list[Word]] = None,
 ) -> Optional[ReviewItem]:
+    phrase_pool = phrase_pool or []
+    word_pool = word_pool or []
     if phrase:
         examples = [example for example in [phrase.example_1, phrase.example_2, phrase.example_3] if example]
+        stage2, stage3, final_quiz = _build_phrase_review_quizzes(phrase, phrase_pool)
         return ReviewItem(
             id=phrase.id,
             item_type="phrase",
@@ -60,9 +188,13 @@ def _build_review_item(
             examples=examples,
             source=phrase.source,
             next_review_at=record.next_review,
+            stage2_quiz=stage2,
+            stage3_quiz=stage3,
+            final_quiz=final_quiz,
         )
 
     if word:
+        stage2, stage3, final_quiz = _build_word_review_quizzes(word, word_pool)
         return ReviewItem(
             id=word.id,
             item_type="word",
@@ -72,6 +204,9 @@ def _build_review_item(
             examples=[word.example] if word.example else [],
             part_of_speech=word.part_of_speech,
             next_review_at=record.next_review,
+            stage2_quiz=stage2,
+            stage3_quiz=stage3,
+            final_quiz=final_quiz,
         )
 
     return None
@@ -158,16 +293,35 @@ async def get_review_overview(
     start_date = start.date()
     end_date = end.date()
 
-    due_count = (
-        db.query(func.count(UserProgress.id))
+    today_start, today_end = _today_review_range(now)
+    review_cutoff = today_end
+    due_progress_rows = (
+        db.query(UserProgress.phrase_id, UserProgress.word_id)
         .filter(
             UserProgress.openid == user.openid,
             UserProgress.next_review.isnot(None),
-            UserProgress.next_review <= now,
+            UserProgress.next_review <= review_cutoff,
         )
-        .scalar()
-        or 0
+        .all()
     )
+    due_item_keys = {
+        ("phrase", row.phrase_id) if row.phrase_id else ("word", row.word_id)
+        for row in due_progress_rows
+        if row.phrase_id or row.word_id
+    }
+    due_count = len(due_item_keys)
+
+    reviewed_today_rows = (
+        db.query(ReviewLog.item_type, ReviewLog.item_id)
+        .filter(
+            ReviewLog.openid == user.openid,
+            ReviewLog.reviewed_at >= today_start,
+            ReviewLog.reviewed_at < today_end,
+        )
+        .all()
+    )
+    reviewed_today_keys = {(row.item_type, row.item_id) for row in reviewed_today_rows}
+    today_review_count = len(due_item_keys | reviewed_today_keys)
 
     # --- Build rich calendar data ---
     # 1. DailyContent for the month
@@ -192,12 +346,12 @@ async def get_review_overview(
         .all()
     )
     review_stats_by_date = {}
+    review_unique_keys_by_date: dict[str, set[tuple[str, int]]] = {}
     logged_item_keys = set()
 
     def ensure_review_stats(ds: str):
         if ds not in review_stats_by_date:
             review_stats_by_date[ds] = {
-                "reviewed_count": 0,
                 "mastery_values": [],
                 "review_phrase_count": 0,
                 "review_word_count": 0,
@@ -208,14 +362,20 @@ async def get_review_overview(
             }
         return review_stats_by_date[ds]
 
-    def add_review_stat(ds: str, item_type: str, mastery: int):
+    def add_review_stat(ds: str, item_type: str, item_id: int, mastery: int):
         stats = ensure_review_stats(ds)
-        stats["reviewed_count"] += 1
         stats["mastery_values"].append(mastery)
-        if item_type == "phrase":
-            stats["review_phrase_count"] += 1
-        elif item_type == "word":
-            stats["review_word_count"] += 1
+
+        # Deduplicate: only count each (type, id) once per day
+        if ds not in review_unique_keys_by_date:
+            review_unique_keys_by_date[ds] = set()
+        key = (item_type, item_id)
+        if key not in review_unique_keys_by_date[ds]:
+            review_unique_keys_by_date[ds].add(key)
+            if item_type == "phrase":
+                stats["review_phrase_count"] += 1
+            elif item_type == "word":
+                stats["review_word_count"] += 1
 
         if mastery <= 0:
             stats["forgot_count"] += 1
@@ -229,7 +389,7 @@ async def get_review_overview(
     for log in review_logs:
         ds = log.reviewed_at.date().isoformat()
         logged_item_keys.add((log.item_type, log.item_id))
-        add_review_stat(ds, log.item_type, log.mastery or 0)
+        add_review_stat(ds, log.item_type, log.item_id, log.mastery or 0)
 
     # Backfill current progress rows that predate ReviewLog rollout, without
     # double-counting items that already have persistent logs.
@@ -248,7 +408,7 @@ async def get_review_overview(
         item_id = rec.phrase_id or rec.word_id
         if not item_id or (item_type, item_id) in logged_item_keys:
             continue
-        add_review_stat(rec.last_review.date().isoformat(), item_type, rec.mastery or 0)
+        add_review_stat(rec.last_review.date().isoformat(), item_type, item_id, rec.mastery or 0)
 
     # 3. UserProgress.created_at in this month (for learned flag)
     learned_records = (
@@ -289,9 +449,9 @@ async def get_review_overview(
         # learned: user created a progress record on this day for items in this content
         learned = ds in learned_dates and has_content
 
-        # reviewed count & avg mastery
+        # reviewed count & avg mastery (deduplicated by unique items)
         review_stats = ensure_review_stats(ds)
-        reviewed = review_stats["reviewed_count"]
+        reviewed = len(review_unique_keys_by_date.get(ds, set()))
         mastery_list = review_stats["mastery_values"]
         avg_mastery = round(sum(mastery_list) / len(mastery_list), 1) if mastery_list else 0.0
 
@@ -325,6 +485,7 @@ async def get_review_overview(
 
     return ReviewOverviewResponse(
         due_count=due_count,
+        today_review_count=today_review_count,
         calendar_dates=calendar_dates,
         memory_summary=_get_memory_summary(user, db, now),
     )
@@ -337,12 +498,13 @@ async def get_due_reviews(
 ):
     """Get review items that are currently due."""
     now = datetime.now(timezone.utc)
+    review_cutoff = _today_review_cutoff(now)
     due_records = (
         db.query(UserProgress)
         .filter(
             UserProgress.openid == user.openid,
             UserProgress.next_review.isnot(None),
-            UserProgress.next_review <= now,
+            UserProgress.next_review <= review_cutoff,
         )
         .order_by(UserProgress.next_review.asc())
         .limit(50)
@@ -350,6 +512,8 @@ async def get_due_reviews(
     )
 
     items: list[ReviewItem] = []
+    phrase_pool = db.query(Phrase).all()
+    word_pool = db.query(Word).all()
     for record in due_records:
         phrase = None
         word = None
@@ -358,7 +522,7 @@ async def get_due_reviews(
         elif record.word_id:
             word = db.query(Word).filter(Word.id == record.word_id).first()
 
-        item = _build_review_item(record, phrase, word)
+        item = _build_review_item(record, phrase, word, phrase_pool, word_pool)
         if item:
             items.append(item)
 

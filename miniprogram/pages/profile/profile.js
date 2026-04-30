@@ -13,25 +13,20 @@ Page({
       totalQuiz: 0,
       avgAccuracy: 0
     },
-    achievements: [
-      { id: 'beginner', icon: '🌟', name: '初学者', desc: '完成首次学习', unlocked: false },
-      { id: 'week_streak', icon: '📅', name: '7日打卡', desc: '连续学习7天', unlocked: false },
-      { id: 'study_freak', icon: '🔥', name: '学习狂人', desc: '连续学习30天', unlocked: false },
-      { id: 'word_master', icon: '📚', name: '百词斩', desc: '掌握100个单词', unlocked: false },
-      { id: 'quiz_expert', icon: '🎯', name: '答题达人', desc: '答题正确率80%+', unlocked: false },
-      { id: 'phrase_collector', icon: '💬', name: '短语收藏家', desc: '掌握50个短语', unlocked: false }
-    ]
+    achievements: [],
+    achievementGroups: []
   },
 
   onLoad() {
     this.loadUserInfo()
     this.loadStats()
+    this.loadAchievements()
   },
 
   onShow() {
-    // Refresh stats every time page is shown
     this.loadStats()
     this.loadUserInfo()
+    this.loadAchievements()
   },
 
   /**
@@ -67,7 +62,6 @@ Page({
           avgAccuracy: data.avg_accuracy || data.avgAccuracy || 0
         }
         self.setData({ stats: stats })
-        self.updateAchievements(stats)
       })
       .catch(function(err) {
         console.warn('[Profile] Failed to load stats from API:', err)
@@ -100,39 +94,51 @@ Page({
     }
 
     this.setData({ stats: stats })
-    this.updateAchievements(stats)
   },
 
   /**
-   * Update achievement unlock status based on stats
+   * Load achievements from server, fallback to local cache
    */
-  updateAchievements(stats) {
-    var achievements = this.data.achievements
+  loadAchievements() {
+    var self = this
+    api.get('/user/achievements')
+      .then(function(data) {
+        var achievements = (data.achievements || []).map(function(a) {
+          if (a.unlocked && a.unlocked_at) {
+            var d = new Date(a.unlocked_at)
+            a.unlocked_at_display = (d.getMonth() + 1) + '月' + d.getDate() + '日'
+          }
+          return a
+        })
+        var groups = self._groupAchievements(achievements)
+        self.setData({ achievements: achievements, achievementGroups: groups })
+        // Cache for offline fallback
+        storage.set(storage.KEYS.ACHIEVEMENTS, achievements)
+      })
+      .catch(function(err) {
+        console.warn('[Profile] Failed to load achievements:', err)
+        var cached = storage.get(storage.KEYS.ACHIEVEMENTS) || []
+        if (cached.length > 0) {
+          var groups = self._groupAchievements(cached)
+          self.setData({ achievements: cached, achievementGroups: groups })
+        }
+      })
+  },
 
+  /**
+   * Group achievements by category for display
+   */
+  _groupAchievements(achievements) {
+    var categoryOrder = ['learning', 'streak', 'word', 'phrase', 'quiz']
+    var groupMap = {}
     achievements.forEach(function(item) {
-      switch (item.id) {
-        case 'beginner':
-          item.unlocked = stats.totalPhrases > 0 || stats.totalWords > 0
-          break
-        case 'week_streak':
-          item.unlocked = stats.studyStreak >= 7
-          break
-        case 'study_freak':
-          item.unlocked = stats.studyStreak >= 30
-          break
-        case 'word_master':
-          item.unlocked = stats.masteredWords >= 100
-          break
-        case 'quiz_expert':
-          item.unlocked = stats.totalQuiz > 0 && stats.avgAccuracy >= 80
-          break
-        case 'phrase_collector':
-          item.unlocked = stats.masteredPhrases >= 50
-          break
+      var cat = item.category || 'other'
+      if (!groupMap[cat]) {
+        groupMap[cat] = { category: cat, category_zh: item.category_zh || '', items: [] }
       }
+      groupMap[cat].items.push(item)
     })
-
-    this.setData({ achievements: achievements })
+    return categoryOrder.map(function(cat) { return groupMap[cat] }).filter(Boolean)
   },
 
   /**

@@ -1,67 +1,71 @@
-# Profile Active Learning Streak Design
+# “我的”页连续学习天数设计方案
 
-## Summary
+## 概要
 
-The profile page should show a truthful `连续学习天数` based on real user activity across learning, review, and quiz flows. The metric should represent consecutive active learning days, not only the legacy `users.study_streak` counter.
+“我的”页应该展示真实可信的 `连续学习天数`。这个指标需要基于用户在学习、复习、测验三条路径中的真实行为记录计算，而不是只依赖旧的 `users.study_streak` 计数字段。
 
-## Goals
+新的连续学习天数表示“连续活跃学习日”：只要某个北京时间自然日里，用户完成过至少一次有效学习行为，这一天就算作一个学习日。
 
-- Count a day as active when the user completes at least one meaningful learning action.
-- Include three activity sources: learning sessions, review completions, and quiz submissions.
-- Use a single timezone rule, `Asia/Shanghai`, for all day and week boundaries.
-- Keep existing API consumers working while giving the profile page a clearer field to display.
-- Make the UI feel like a light learning dashboard: clear, calm, and honest.
+## 目标
 
-## Non-Goals
+- 用户完成至少一个有意义的学习行为时，当天计为活跃学习日。
+- 连续学习天数同时纳入三类来源：学习会话、复习完成、测验提交。
+- 所有自然日边界统一使用北京时间 `Asia/Shanghai`。
+- 保持现有接口调用兼容，同时给“我的”页提供更明确、更真实的展示字段。
+- UI 呈现保持浅色学习仪表盘风格，清晰、克制、可信。
 
-- No new standalone achievement system in this change.
-- No user-customizable streak rules.
-- No migration that rewrites historical user counters.
-- No simulated progress, fake trend lines, or placeholder statistics.
+## 非目标
 
-## Current State
+- 本次不新增独立成就系统。
+- 本次不做用户自定义连续规则。
+- 本次不迁移或重写历史 `users.study_streak` 计数字段。
+- 不展示模拟进度、假趋势线或占位统计。
 
-The profile page currently calls `/review/progress/summary` and maps `study_streak` into `stats.studyStreak`. The backend returns `study_streak` from `users.study_streak`.
+## 当前状态
 
-That counter is updated by:
+“我的”页当前调用 `/review/progress/summary`，并把接口返回的 `study_streak` 映射到前端的 `stats.studyStreak`。
 
-- `/learn/report`, when a learning session report is submitted.
-- `/review/complete`, when a review item is completed.
+后端当前返回的 `study_streak` 来自 `users.study_streak`。
 
-Quiz-only activity is not included in `users.study_streak`, even though quiz activity is recorded in `quiz_records` and already powers quiz statistics.
+这个旧计数字段目前由两个接口更新：
 
-## Recommended Metric
+- `/learn/report`：提交学习会话报告时更新。
+- `/review/complete`：完成一个复习项时更新。
 
-`active_streak_days` is the canonical profile streak.
+单独完成测验不会更新 `users.study_streak`，即使测验行为已经被真实记录在 `quiz_records` 表里，并且已经用于测验页统计。
 
-A user has an active learning day if, in Beijing time, that natural day contains at least one of:
+## 推荐指标
 
-- A `learn_sessions` row for the user.
-- A `review_logs` row for the user.
-- A `quiz_records` row for the user.
+新增并使用 `active_streak_days` 作为“我的”页连续学习天数的标准字段。
 
-Multiple actions on the same day count as one active day for the streak, but action counts remain useful for profile subtext.
+如果某个北京时间自然日中，当前用户至少有以下任意一种记录，则该日算作活跃学习日：
 
-## Streak Calculation
+- `learn_sessions` 中有该用户的学习会话记录。
+- `review_logs` 中有该用户的复习完成记录。
+- `quiz_records` 中有该用户的测验答题记录。
 
-Use `Asia/Shanghai` for all date conversion.
+同一天完成多次学习、复习或测验，连续天数只增加 1 天；但这些真实次数可以用于“今日完成”说明文案。
 
-1. Collect distinct activity dates from the three source tables for the current user.
-2. Convert each timestamp to a Beijing natural date.
-3. Choose the anchor date:
-   - If today is active, anchor on today.
-   - If today is not active but yesterday is active, anchor on yesterday.
-   - Otherwise return `0`.
-4. Walk backward by one day at a time while each date exists in the activity-date set.
-5. Return the count as `active_streak_days`.
+## 连续天数计算规则
 
-This keeps the streak from disappearing early in the day before the user has had a chance to practice.
+所有时间都转换到 `Asia/Shanghai` 后再取自然日。
 
-## API Design
+1. 从三张行为表中收集当前用户的所有活跃日期。
+2. 将每条行为记录的时间戳转换为北京时间自然日。
+3. 选择连续计算的锚点日期：
+   - 如果今天有活跃行为，从今天开始向前计算。
+   - 如果今天没有活跃行为，但昨天有活跃行为，从昨天开始向前计算。
+   - 如果今天和昨天都没有活跃行为，返回 `0`。
+4. 从锚点日期开始，按天向前检查日期是否存在于活跃日期集合中。
+5. 返回连续命中的天数，作为 `active_streak_days`。
 
-Extend `/review/progress/summary` without removing legacy fields.
+这个规则可以避免用户在当天尚未练习时，早上一打开“我的”页就看到连续天数被提前清零。
 
-Add:
+## API 设计
+
+扩展现有 `/review/progress/summary`，不移除旧字段。
+
+新增字段示例：
 
 ```json
 {
@@ -76,93 +80,97 @@ Add:
 }
 ```
 
-Field meanings:
+字段含义：
 
-- `active_streak_days`: canonical profile streak.
-- `last_active_date`: latest active Beijing date, or `null` if no activity exists.
-- `today_activity.learn_sessions`: number of learning session reports today.
-- `today_activity.review_items`: number of review completion logs today.
-- `today_activity.quiz_answers`: number of quiz answer records today.
-- `streak_sources`: activity types present on the latest active date.
+- `active_streak_days`：新的“我的”页标准连续学习天数字段。
+- `last_active_date`：最近一个活跃学习日，北京时间日期；如果没有任何记录，则为 `null`。
+- `today_activity.learn_sessions`：今天提交的学习会话数量。
+- `today_activity.review_items`：今天完成的复习项数量。
+- `today_activity.quiz_answers`：今天提交的测验答题数量。
+- `streak_sources`：最近一个活跃学习日包含的行为来源，例如 `learn`、`review`、`quiz`。
 
-Keep:
+继续保留字段：
 
-- `study_streak`: legacy field from `users.study_streak`.
-- `total_study_days`, `mastered_phrases`, `mastered_words`, `total_quiz`, `avg_accuracy`.
+- `study_streak`：旧字段，仍来自 `users.study_streak`，用于兼容旧版本。
+- `total_study_days`
+- `mastered_phrases`
+- `mastered_words`
+- `total_quiz`
+- `avg_accuracy`
 
-The profile page should display `active_streak_days` when available and fall back to `study_streak` only for older backend compatibility.
+前端“我的”页应优先展示 `active_streak_days`。只有当后端还没有返回该字段时，才回退使用旧的 `study_streak`。
 
-## UI Design
+## UI 设计
 
-The profile stats card should keep the existing learning dashboard direction but make the streak card more explanatory.
+“我的”页学习统计卡片继续保持当前学习仪表盘方向，但连续学习卡片需要更明确地说明数据来源和今日状态。
 
-Primary display:
+主展示：
 
-- Label: `连续学习`
-- Value: `{active_streak_days}`
-- Unit: `天`
+- 标题：`连续学习`
+- 数值：`{active_streak_days}`
+- 单位：`天`
 
-Subtext states:
+辅助文案状态：
 
-- Today active: `今日已完成：学习 {n} 次 · 复习 {n} 项 · 测验 {n} 题`
-- Today inactive but yesterday active: `连续保持中，今天完成一次练习即可续上`
-- No current streak: `今天完成一次学习即可重新开始连续记录`
+- 今天已有活跃行为：`今日已完成：学习 {n} 次 · 复习 {n} 项 · 测验 {n} 题`
+- 今天未活跃但昨天活跃：`连续保持中，今天完成一次练习即可续上`
+- 当前没有连续记录：`今天完成一次学习即可重新开始连续记录`
 
-Visual direction:
+视觉方向：
 
-- Light background, white cards, blue-green primary palette, small warm accent for reminders.
-- Use simple CSS or existing icon resources instead of emoji as core icons.
-- Avoid fake trend bars. Only show counts backed by API data.
-- Keep mobile layout stable at narrow widths. Long activity subtext should wrap cleanly.
+- 浅色背景、白色卡片、蓝绿主色，少量暖色用于提醒状态。
+- 使用 CSS 形状或现有图标资源，不把 emoji 当核心图标。
+- 不展示假趋势条，只展示接口返回的真实统计。
+- 移动端窄屏下，长说明文案需要自然换行，不能横向溢出卡片。
 
-## Data Flow
+## 数据流
 
-1. User opens profile page.
-2. Frontend calls `/review/progress/summary`.
-3. Backend aggregates current user's learning, review, and quiz activity dates.
-4. Backend returns both legacy and new streak fields.
-5. Frontend maps:
-   - `active_streak_days` -> profile `连续学习`
-   - `today_activity` -> streak subtext
-   - old `study_streak` -> fallback only
+1. 用户打开“我的”页。
+2. 前端请求 `/review/progress/summary`。
+3. 后端聚合当前用户在学习、复习、测验三类行为中的活跃日期。
+4. 后端同时返回旧字段和新的连续学习字段。
+5. 前端映射：
+   - `active_streak_days` -> “连续学习”主数值。
+   - `today_activity` -> 连续学习卡片辅助文案。
+   - `study_streak` -> 仅作为旧后端兼容回退。
 
-If the API request fails, frontend may use local fallback, but the UI should make no stronger claim than the available data supports.
+如果接口请求失败，前端可以继续使用本地 fallback；但 UI 文案不能把本地不完整数据包装成完整真实统计。
 
-## Edge Cases
+## 边界情况
 
-- No records in any source table: streak is `0`, `last_active_date` is `null`, all today counts are `0`.
-- Multiple actions on the same day: streak day count increases by `1`, today activity counts show actual counts.
-- Quiz-only day: counts as an active learning day.
-- Review-only day: counts as an active learning day.
-- Learning-only day: counts as an active learning day.
-- Today inactive, yesterday active: show the existing streak through yesterday.
-- Today and yesterday inactive: current streak is `0`.
-- Naive UTC timestamps and timezone-aware timestamps should both be converted safely to Beijing dates.
+- 三张来源表都没有记录：`active_streak_days=0`，`last_active_date=null`，今日各项数量都为 `0`。
+- 同一天多次学习、复习、测验：连续天数只算 1 天，今日数量展示真实次数。
+- 只有测验记录的日期：算作活跃学习日。
+- 只有复习记录的日期：算作活跃学习日。
+- 只有学习会话记录的日期：算作活跃学习日。
+- 今天未活跃但昨天活跃：连续天数保持到昨天。
+- 今天和昨天都未活跃：当前连续天数为 `0`。
+- 无时区时间戳和带时区时间戳都需要安全转换为北京时间日期。
 
-## Testing
+## 测试计划
 
-Backend tests:
+后端测试：
 
-- No activity returns `active_streak_days=0`.
-- Learning-only activity counts toward streak.
-- Review-only activity counts toward streak.
-- Quiz-only activity counts toward streak.
-- Same-day multiple sources count as one streak day.
-- Consecutive multi-day mixed activity returns the correct count.
-- One-day gap breaks the streak.
-- Today inactive but yesterday active preserves the streak through yesterday.
-- Beijing timezone boundary is respected.
+- 无任何行为时返回 `active_streak_days=0`。
+- 只有学习记录时计入连续天数。
+- 只有复习记录时计入连续天数。
+- 只有测验记录时计入连续天数。
+- 同一天多个来源只计为 1 个连续学习日。
+- 连续多天混合来源时，连续天数计算正确。
+- 中间断一天时，连续天数从最近连续段重新计算。
+- 今天未活跃但昨天活跃时，连续天数保持到昨天。
+- 北京时间跨日边界计算正确。
 
-Frontend checks:
+前端检查：
 
-- Profile uses `active_streak_days` before `study_streak`.
-- Empty API data displays `0 天`.
-- Today activity subtext handles zero and non-zero counts.
-- Long subtext wraps inside the profile card without horizontal overflow.
+- “我的”页优先使用 `active_streak_days`，再回退到 `study_streak`。
+- 空数据时显示 `0 天`。
+- 今日活动说明可以正确处理 0 和非 0 数量。
+- 长说明文案在统计卡片内自然换行，不出现横向溢出。
 
-## Implementation Notes
+## 实现备注
 
-- Prefer a small backend helper such as `_calculate_active_streak_days(...)` rather than embedding the calculation directly in the route body.
-- Keep the existing `/review/progress/summary` route to avoid a broader frontend API migration.
-- Do not update `users.study_streak` from quiz submissions in this design; it remains a legacy compatibility field.
-- The same aggregation helper can later support achievements such as `连续学习 7 天`.
+- 后端建议抽一个小 helper，例如 `_calculate_active_streak_days(...)`，不要把连续天数计算全部塞在路由函数里。
+- 继续沿用 `/review/progress/summary`，避免引入不必要的前端接口迁移。
+- 本设计不要求测验提交时更新 `users.study_streak`；该字段继续作为旧兼容字段保留。
+- 后续成就系统可以直接复用同一套活跃日期聚合逻辑，例如扩展 `连续学习 7 天`、`连续学习 30 天` 等成就。

@@ -1,4 +1,5 @@
 """Admin API - content import (called by Hermes cron)."""
+import json
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
@@ -78,6 +79,8 @@ def _upsert_content(db: Session, data: ContentImport):
             part_of_speech=w.part_of_speech,
             meaning=w.meaning,
             example=w.example,
+            usage_note=w.usage_note,
+            context_meanings=json.dumps(w.context_meanings, ensure_ascii=False) if w.context_meanings else None,
             sort_order=i,
         )
         db.add(word)

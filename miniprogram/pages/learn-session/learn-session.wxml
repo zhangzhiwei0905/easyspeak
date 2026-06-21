@@ -16,13 +16,24 @@
 
   <!-- ========== Loading ========== -->
   <view class="loading-state" wx:if="{{loading}}">
-    <view class="loading-spinner"></view>
-    <text class="loading-text">正在准备学习内容...</text>
+    <view class="loading-dots">
+      <view class="loading-dots__dot"></view>
+      <view class="loading-dots__dot"></view>
+      <view class="loading-dots__dot"></view>
+    </view>
+    <text class="loading-state__title">{{prepareText}}</text>
+    <view class="loading-progress">
+      <view class="loading-progress__track">
+        <view class="loading-progress__fill" style="width: {{prepareProgress}}%"></view>
+      </view>
+      <text class="loading-progress__value">{{prepareProgress}}%</text>
+    </view>
+    <text class="loading-state__text">{{learnType === 'word' ? '单词会先准备语境和练习题，首次进入可能稍慢' : '正在为你整理短语卡片和练习题'}}</text>
   </view>
 
   <!-- ========== Error ========== -->
   <view class="error-state" wx:if="{{loadError && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <text class="error-state__icon">!</text>
     <text class="error-state__text">{{errorMsg || '加载失败'}}</text>
     <view class="btn btn-primary" bindtap="onRetry">重新加载</view>
   </view>
@@ -34,9 +45,9 @@
     <view class="progress-strip">
       <view class="progress-strip__track">
         <view class="progress-strip__fill progress-strip__fill--s{{stage}}"
-              style="width: {{(currentIndex / queue.length) * 100}}%"></view>
+              style="width: {{queue.length > 0 ? ((currentIndex + (stage === 1 ? 0 : (submitted ? 1 : 0))) / queue.length) * 100 : 0}}%"></view>
       </view>
-      <text class="progress-strip__text">{{currentIndex + 1}} / {{queue.length}}</text>
+      <text class="progress-strip__text">{{stage === 1 ? '学习 ' : '测验 '}}{{currentIndex + 1}} / {{queue.length}}</text>
     </view>
 
     <!-- ======= Stage 1: Exposure ======= -->
@@ -52,16 +63,16 @@
         </view>
         <view class="exposure__card">
           <view class="exposure__meaning-row">
-            <text class="exposure__meaning-label">📖</text>
+            <text class="exposure__meaning-label">释义</text>
             <text class="exposure__meaning-text">{{currentItem.explanation}}</text>
           </view>
           <view class="exposure__example" wx:if="{{currentItem.example_en}}">
-            <text class="exposure__example-label">💡 例句</text>
+            <text class="exposure__example-label">例句</text>
             <text class="exposure__example-en">"{{currentItem.example_en}}"</text>
             <text class="exposure__example-cn" wx:if="{{currentItem.example_cn}}">{{currentItem.example_cn}}</text>
           </view>
           <view class="exposure__source" wx:if="{{currentItem.source}}">
-            <text class="exposure__source-text">📽 {{currentItem.source}}</text>
+            <text class="exposure__source-text">{{currentItem.source}}</text>
           </view>
         </view>
       </block>
@@ -88,13 +99,26 @@
             <text class="exposure__example-label">💡 例句</text>
             <text class="exposure__example-en">"{{currentItem.example}}"</text>
           </view>
+          <view class="exposure__usage" wx:if="{{currentItem.usage_note || (currentItem.context_meanings && currentItem.context_meanings.length > 0)}}">
+            <text class="exposure__usage-label">用法补充</text>
+            <text class="exposure__usage-note" wx:if="{{currentItem.usage_note}}">{{currentItem.usage_note}}</text>
+            <view class="exposure__context-list" wx:if="{{currentItem.context_meanings && currentItem.context_meanings.length > 0}}">
+              <view class="exposure__context-item" wx:for="{{currentItem.context_meanings}}" wx:key="context">
+                <text class="exposure__context-tag">{{item.context}}</text>
+                <view class="exposure__context-copy">
+                  <text class="exposure__context-meaning">{{item.meaning}}</text>
+                  <text class="exposure__context-example" wx:if="{{item.example}}">{{item.example}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
         </view>
       </block>
 
       <!-- Next button -->
       <view class="stage-action">
         <view class="btn btn-next {{canProceed ? '' : 'btn--disabled'}}" bindtap="onExposureNext">
-          <text class="btn__text">{{canProceed ? '我记住了，下一步 →' : '请认真阅读...'}}</text>
+          <text class="btn__text">{{canProceed ? (currentIndex + 1 >= totalItems ? '开始统一测验 →' : '继续学习下一项 →') : '请认真阅读...'}}</text>
         </view>
       </view>
     </view>
@@ -103,7 +127,7 @@
     <view class="stage-card stage-quiz animate-fade-in" wx:if="{{stage === 2 || stage === 3}}">
       <view class="quiz__question">
         <text class="quiz__question-text">{{quizData.question}}</text>
-        <text class="quiz__hint" wx:if="{{quizData.hint}}">💡 提示：{{quizData.hint}}</text>
+        <text class="quiz__hint" wx:if="{{quizData.hint}}">提示：{{quizData.hint}}</text>
       </view>
 
       <view class="quiz__options">
@@ -123,7 +147,7 @@
       <!-- Feedback -->
       <view class="quiz__feedback" wx:if="{{submitted}}">
         <view class="quiz__feedback-banner {{isCorrect ? 'quiz__feedback-banner--correct' : 'quiz__feedback-banner--wrong'}}">
-          <text class="quiz__feedback-emoji">{{isCorrect ? '🎉' : '😅'}}</text>
+          <text class="quiz__feedback-emoji">{{isCorrect ? '✓' : '✗'}}</text>
           <text class="quiz__feedback-text">{{isCorrect ? '太棒了！回答正确' : '答错了，正确答案是 ' + correctOptionText}}</text>
         </view>
       </view>
@@ -150,7 +174,7 @@
         <view class="progress-strip__fill progress-strip__fill--s4"
               style="width: {{(stage4Index / stage4Items.length) * 100}}%"></view>
       </view>
-      <text class="progress-strip__text">🧠 最终确认 {{stage4Index + 1}} / {{stage4Items.length}}</text>
+      <text class="progress-strip__text">最终确认 {{stage4Index + 1}} / {{stage4Items.length}}</text>
     </view>
 
     <view class="stage-card stage-mastery animate-fade-in">
@@ -166,7 +190,7 @@
       <!-- Flip button / Revealed answer -->
       <view class="mastery__reveal" wx:if="{{stage4Mode === 'self' && !stage4Flipped}}">
         <view class="btn btn-flip" bindtap="onFlipCard">
-          <text class="btn__text">👀 点击显示答案</text>
+          <text class="btn__text">点击显示答案</text>
         </view>
       </view>
 
@@ -212,7 +236,7 @@
           <text class="mastery__answer-text" wx:if="{{learnType === 'word'}}">{{stage4Item.word}}</text>
           <text class="mastery__answer-phonetic" wx:if="{{learnType === 'word' && stage4Item.phonetic}}">{{stage4Item.phonetic}}</text>
           <view class="mastery__answer-audio" bindtap="onPlayAudio">
-            <text>🔊 听发音</text>
+            <text>听发音</text>
           </view>
         </view>
 
@@ -223,19 +247,15 @@
         </view>
         <view class="mastery__assess-btns">
           <view class="mastery__btn mastery__btn--forgot" data-mastery="0" bindtap="onMasterySelect">
-            <text class="mastery__btn-emoji">😫</text>
             <text class="mastery__btn-label">忘了</text>
           </view>
           <view class="mastery__btn mastery__btn--fuzzy" data-mastery="1" bindtap="onMasterySelect">
-            <text class="mastery__btn-emoji">😕</text>
             <text class="mastery__btn-label">模糊</text>
           </view>
           <view class="mastery__btn mastery__btn--remembered" data-mastery="3" bindtap="onMasterySelect">
-            <text class="mastery__btn-emoji">😊</text>
             <text class="mastery__btn-label">记住了</text>
           </view>
           <view class="mastery__btn mastery__btn--solid" data-mastery="4" bindtap="onMasterySelect">
-            <text class="mastery__btn-emoji">🎯</text>
             <text class="mastery__btn-label">牢记</text>
           </view>
         </view>
@@ -249,14 +269,14 @@
   <block wx:if="{{phase === 'report' && report}}">
     <view class="report animate-fade-in">
       <view class="report__header">
-        <text class="report__title-emoji">🎉</text>
+        
         <text class="report__title">学习完成！</text>
         <text class="report__subtitle">{{themeZh}} · {{learnType === 'phrase' ? '短语' : '单词'}}</text>
       </view>
 
       <!-- Stats card -->
       <view class="report__card">
-        <text class="report__card-title">📊 学习报告</text>
+        <text class="report__card-title">学习报告</text>
         <view class="report__stat-grid">
           <view class="report__stat">
             <text class="report__stat-icon">⏱️</text>
@@ -264,17 +284,17 @@
             <text class="report__stat-value">{{report.durationDisplay}}</text>
           </view>
           <view class="report__stat">
-            <text class="report__stat-icon">📝</text>
+            
             <text class="report__stat-label">学习项目</text>
             <text class="report__stat-value">{{report.totalItems}} 项</text>
           </view>
           <view class="report__stat">
-            <text class="report__stat-icon">🎯</text>
+            
             <text class="report__stat-label">一次通过率</text>
             <text class="report__stat-value">{{report.firstPassRate}}%</text>
           </view>
           <view class="report__stat">
-            <text class="report__stat-icon">✅</text>
+            
             <text class="report__stat-label">最终通过率</text>
             <text class="report__stat-value">{{report.finalPassRate}}%</text>
           </view>
@@ -283,10 +303,10 @@
 
       <!-- Mastery distribution -->
       <view class="report__card">
-        <text class="report__card-title">🧠 掌握度分布</text>
+        <text class="report__card-title">掌握度分布</text>
         <view class="report__dist">
           <view class="report__dist-row">
-            <text class="report__dist-emoji">🎯</text>
+            <text class="report__dist-emoji">●</text>
             <text class="report__dist-label">牢记</text>
             <view class="report__dist-bar-wrap">
               <view class="report__dist-bar report__dist-bar--solid"
@@ -295,7 +315,7 @@
             <text class="report__dist-count">{{report.distribution.solid}}</text>
           </view>
           <view class="report__dist-row">
-            <text class="report__dist-emoji">😊</text>
+            <text class="report__dist-emoji">●</text>
             <text class="report__dist-label">记住了</text>
             <view class="report__dist-bar-wrap">
               <view class="report__dist-bar report__dist-bar--remembered"
@@ -304,7 +324,7 @@
             <text class="report__dist-count">{{report.distribution.remembered}}</text>
           </view>
           <view class="report__dist-row">
-            <text class="report__dist-emoji">😕</text>
+            <text class="report__dist-emoji">○</text>
             <text class="report__dist-label">模糊</text>
             <view class="report__dist-bar-wrap">
               <view class="report__dist-bar report__dist-bar--fuzzy"
@@ -313,7 +333,7 @@
             <text class="report__dist-count">{{report.distribution.fuzzy}}</text>
           </view>
           <view class="report__dist-row">
-            <text class="report__dist-emoji">😫</text>
+            <text class="report__dist-emoji">○</text>
             <text class="report__dist-label">忘了</text>
             <view class="report__dist-bar-wrap">
               <view class="report__dist-bar report__dist-bar--forgot"
@@ -326,16 +346,16 @@
 
       <!-- Streak -->
       <view class="report__streak" wx:if="{{report.studyStreak}}">
-        <text class="report__streak-text">🔥 连续学习 {{report.studyStreak}} 天！</text>
+        <text class="report__streak-text">连续学习 {{report.studyStreak}} 天</text>
       </view>
 
       <!-- Actions -->
       <view class="report__actions">
         <view class="btn btn-share" bindtap="onShareResult">
-          <text class="btn__text">📤 分享成绩</text>
+          <text class="btn__text">分享成绩</text>
         </view>
         <view class="btn btn-primary" bindtap="onBackToHome">
-          <text class="btn__text">🏠 返回首页</text>
+          <text class="btn__text">返回首页</text>
         </view>
       </view>
     </view>

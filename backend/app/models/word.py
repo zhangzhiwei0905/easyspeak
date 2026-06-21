@@ -15,6 +15,8 @@ class Word(Base):
     meaning = Column(Text)
     example = Column(Text)
     example_cn = Column(Text)
+    usage_note = Column(Text)
+    context_meanings = Column(Text)
     sort_order = Column(Integer, default=0)
 
     content = relationship("DailyContent", back_populates="words")

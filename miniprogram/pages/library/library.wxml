@@ -48,7 +48,7 @@
 
         <!-- Theme Results -->
         <view class="search-results__group" wx:if="{{searchThemes.length > 0}}">
-          <text class="search-results__group-title">🏷️ 相关主题</text>
+          <text class="search-results__group-title">相关主题</text>
           <view class="search-results__item"
                 wx:for="{{searchThemes}}"
                 wx:key="id"
@@ -66,7 +66,7 @@
 
         <!-- Phrase Results -->
         <view class="search-results__group" wx:if="{{searchPhrases.length > 0}}">
-          <text class="search-results__group-title">💬 相关短语</text>
+          <text class="search-results__group-title">相关短语</text>
           <view class="search-results__item"
                 wx:for="{{searchPhrases}}"
                 wx:key="id"
@@ -86,7 +86,7 @@
 
         <!-- Word Results -->
         <view class="search-results__group" wx:if="{{searchWords.length > 0}}">
-          <text class="search-results__group-title">📚 相关单词</text>
+          <text class="search-results__group-title">相关单词</text>
           <view class="search-results__item"
                 wx:for="{{searchWords}}"
                 wx:key="id"
@@ -140,14 +140,14 @@
 
   <!-- ========== Error State ========== -->
   <view class="error-state" wx:if="{{error && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <text class="error-state__icon">!</text>
     <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
     <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
   </view>
 
   <!-- ========== Empty State ========== -->
   <view class="empty-state" wx:if="{{isEmpty && !loading && !error}}">
-    <text class="empty-state__icon">📚</text>
+    <text class="empty-state__icon">—</text>
     <text class="empty-state__title">暂无内容</text>
     <text class="empty-state__desc">还没有推送内容哦</text>
   </view>
@@ -186,7 +186,7 @@
           <view class="content-card__stats">
             <text class="content-card__stat">📝 {{content.phraseCount}}个短语</text>
             <text class="content-card__stat-divider">·</text>
-            <text class="content-card__stat">📚 {{content.wordCount}}个单词</text>
+            <text class="content-card__stat">{{content.wordCount}}个单词</text>
           </view>
           <view class="content-card__mastery" wx:if="{{content.studied}}">
             <text class="content-card__mastery-icon">✅</text>

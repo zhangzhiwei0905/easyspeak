@@ -29,7 +29,7 @@
         </view>
       </view>
       <view class="phrase-card__source-expanded" wx:if="{{source}}">
-        <text class="phrase-card__source-icon">🎬</text>
+        <text class="phrase-card__source-icon"></text>
         <text class="phrase-card__source-text">来源：{{source}}</text>
       </view>
     </view>

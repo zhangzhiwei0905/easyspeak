@@ -41,6 +41,16 @@ Thumbs.db
 
 # --- Claude Code ---
 .claude/
+CLAUDE.md
+
+# --- Kiro IDE ---
+.kiro/
+
+# --- Hypothesis (test cache) ---
+.hypothesis/
+
+# --- Misc ---
+ easyspeak-hyperframes-video/
 
 # --- Docs / Non-code files ---
 english_history.json

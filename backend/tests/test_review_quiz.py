@@ -15,7 +15,9 @@ if str(ROOT) not in sys.path:
 import app.models  # noqa: F401
 from app.database import Base, get_db
 from app.models.daily import DailyContent
+from app.models.learn_session import LearnSession
 from app.models.phrase import Phrase
+from app.models.quiz import QuizRecord
 from app.models.review_log import ReviewLog
 from app.models.user import User, UserProgress
 from app.models.word import Word
@@ -262,6 +264,35 @@ class ReviewQuizApiTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_due_reviews_use_mastery_targeted_core_question_types(self):
+        response = self.client.get("/api/v1/review/due")
+        self.assertEqual(response.status_code, 200)
+
+        items = response.json()["items"]
+        by_key = {(item["item_type"], item["id"]): item for item in items}
+        phrase_quizzes = by_key[("phrase", 1)]["review_quizzes"]
+        word_quizzes = by_key[("word", 1)]["review_quizzes"]
+
+        phrase_types = {quiz["question_type"] for quiz in phrase_quizzes}
+        word_types = {quiz["question_type"] for quiz in word_quizzes}
+
+        self.assertEqual(len(phrase_quizzes), 3)
+        self.assertEqual(len(word_quizzes), 2)
+        self.assertTrue(phrase_types.issubset({
+            "phrase_meaning_choice",
+            "meaning_to_phrase_choice",
+            "phrase_reorder",
+            "phrase_fill_input",
+        }))
+        self.assertTrue(word_types.issubset({
+            "word_meaning_choice",
+            "meaning_to_word_choice",
+            "word_phonetic_choice",
+            "word_context_choice",
+        }))
+        self.assertTrue(phrase_types & {"phrase_meaning_choice", "meaning_to_phrase_choice"})
+        self.assertTrue(word_types & {"word_meaning_choice", "meaning_to_word_choice"})
+
     def test_review_overview_uses_persistent_review_logs(self):
         today = date.today()
         first_review_at = datetime.combine(today - timedelta(days=2), datetime.min.time(), tzinfo=timezone.utc)
@@ -312,6 +343,175 @@ class ReviewQuizApiTest(unittest.TestCase):
         self.assertEqual(current["remembered_count"], 1)
         self.assertEqual(current["solid_count"], 1)
         self.assertEqual(current["avg_mastery"], 3.5)
+
+    def test_progress_summary_has_zero_active_streak_without_activity(self):
+        response = self.client.get("/api/v1/review/progress/summary")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["active_streak_days"], 0)
+        self.assertIsNone(body["last_active_date"])
+        self.assertEqual(body["today_activity"], {
+            "learn_sessions": 0,
+            "review_items": 0,
+            "quiz_answers": 0,
+        })
+        self.assertEqual(body["streak_sources"], [])
+
+    def test_progress_summary_counts_learning_review_and_quiz_active_days(self):
+        db = self.SessionLocal()
+        try:
+            db.add_all([
+                LearnSession(
+                    openid="test-user",
+                    content_id=1,
+                    learn_type="phrase",
+                    total_items=3,
+                    created_at=datetime(2026, 5, 19, 2, 0, tzinfo=timezone.utc),
+                ),
+                ReviewLog(
+                    openid="test-user",
+                    item_type="phrase",
+                    item_id=1,
+                    mastery=4,
+                    reviewed_at=datetime(2026, 5, 20, 3, 0, tzinfo=timezone.utc),
+                ),
+                QuizRecord(
+                    openid="test-user",
+                    quiz_type="phrase_meaning_choice",
+                    question_id=1,
+                    correct=True,
+                    answered_at=datetime(2026, 5, 21, 4, 0, tzinfo=timezone.utc),
+                ),
+                QuizRecord(
+                    openid="test-user",
+                    quiz_type="word_phonetic_choice",
+                    question_id=1,
+                    correct=False,
+                    answered_at=datetime(2026, 5, 22, 2, 30, tzinfo=timezone.utc),
+                ),
+                ReviewLog(
+                    openid="test-user",
+                    item_type="word",
+                    item_id=1,
+                    mastery=3,
+                    reviewed_at=datetime(2026, 5, 22, 3, 0, tzinfo=timezone.utc),
+                ),
+            ])
+            db.commit()
+        finally:
+            db.close()
+
+        original_now = review.datetime
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = datetime(2026, 5, 22, 8, 0, tzinfo=timezone.utc)
+                return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+        review.datetime = FixedDateTime
+        try:
+            response = self.client.get("/api/v1/review/progress/summary")
+        finally:
+            review.datetime = original_now
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["active_streak_days"], 4)
+        self.assertEqual(body["last_active_date"], "2026-05-22")
+        self.assertEqual(body["today_activity"]["learn_sessions"], 0)
+        self.assertEqual(body["today_activity"]["review_items"], 1)
+        self.assertEqual(body["today_activity"]["quiz_answers"], 1)
+        self.assertEqual(body["streak_sources"], ["review", "quiz"])
+
+    def test_progress_summary_keeps_yesterday_active_streak_until_today_activity(self):
+        db = self.SessionLocal()
+        try:
+            db.add_all([
+                QuizRecord(
+                    openid="test-user",
+                    quiz_type="phrase_meaning_choice",
+                    question_id=1,
+                    correct=True,
+                    answered_at=datetime(2026, 5, 19, 2, 0, tzinfo=timezone.utc),
+                ),
+                ReviewLog(
+                    openid="test-user",
+                    item_type="phrase",
+                    item_id=1,
+                    mastery=4,
+                    reviewed_at=datetime(2026, 5, 20, 2, 0, tzinfo=timezone.utc),
+                ),
+                LearnSession(
+                    openid="test-user",
+                    content_id=1,
+                    learn_type="word",
+                    total_items=2,
+                    created_at=datetime(2026, 5, 21, 2, 0, tzinfo=timezone.utc),
+                ),
+            ])
+            db.commit()
+        finally:
+            db.close()
+
+        original_now = review.datetime
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = datetime(2026, 5, 22, 8, 0, tzinfo=timezone.utc)
+                return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+        review.datetime = FixedDateTime
+        try:
+            response = self.client.get("/api/v1/review/progress/summary")
+        finally:
+            review.datetime = original_now
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["active_streak_days"], 3)
+        self.assertEqual(body["last_active_date"], "2026-05-21")
+        self.assertEqual(body["today_activity"], {
+            "learn_sessions": 0,
+            "review_items": 0,
+            "quiz_answers": 0,
+        })
+        self.assertEqual(body["streak_sources"], ["learn"])
+
+    def test_progress_summary_breaks_streak_after_gap(self):
+        db = self.SessionLocal()
+        try:
+            db.add(
+                QuizRecord(
+                    openid="test-user",
+                    quiz_type="phrase_meaning_choice",
+                    question_id=1,
+                    correct=True,
+                    answered_at=datetime(2026, 5, 20, 2, 0, tzinfo=timezone.utc),
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        original_now = review.datetime
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = datetime(2026, 5, 22, 8, 0, tzinfo=timezone.utc)
+                return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+        review.datetime = FixedDateTime
+        try:
+            response = self.client.get("/api/v1/review/progress/summary")
+        finally:
+            review.datetime = original_now
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["active_streak_days"], 0)
 
     def test_daily_today_returns_authenticated_progress(self):
         today = date.today()
@@ -391,6 +591,157 @@ class ReviewQuizApiTest(unittest.TestCase):
         stats_after_fix = self.client.get("/api/v1/quiz/stats")
         self.assertEqual(stats_after_fix.status_code, 200)
         self.assertEqual(stats_after_fix.json()["wrong_count"], 0)
+
+    def test_quiz_stats_tracks_real_completion_streak_days_and_weekly_goal(self):
+        db = self.SessionLocal()
+        try:
+            records = [
+                QuizRecord(openid="test-user", quiz_type="phrase_meaning_choice", question_id=1, correct=True, answered_at=datetime(2026, 5, 18, 1, 30, tzinfo=timezone.utc)),
+                QuizRecord(openid="test-user", quiz_type="phrase_meaning_choice", question_id=2, correct=False, answered_at=datetime(2026, 5, 20, 14, 30, tzinfo=timezone.utc)),
+                QuizRecord(openid="test-user", quiz_type="word_meaning_choice", question_id=1, correct=True, answered_at=datetime(2026, 5, 21, 3, 0, tzinfo=timezone.utc)),
+                QuizRecord(openid="test-user", quiz_type="word_phonetic_choice", question_id=1, correct=True, answered_at=datetime(2026, 5, 21, 12, 0, tzinfo=timezone.utc)),
+                QuizRecord(openid="test-user", quiz_type="phrase_fill_input", question_id=1, correct=True, answered_at=datetime(2026, 5, 22, 2, 0, tzinfo=timezone.utc)),
+            ]
+            db.add_all(records)
+            db.commit()
+        finally:
+            db.close()
+
+        original_now = quiz.datetime
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = datetime(2026, 5, 22, 8, 0, tzinfo=timezone.utc)
+                return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+        quiz.datetime = FixedDateTime
+        try:
+            response = self.client.get("/api/v1/quiz/stats")
+        finally:
+            quiz.datetime = original_now
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["total_answered"], 5)
+        self.assertEqual(body["streak_days"], 3)
+        self.assertEqual(body["weekly_answered"], 5)
+        self.assertEqual(body["weekly_goal"], 50)
+        self.assertEqual(body["weekly_percent"], 10)
+
+    def test_quiz_stats_keeps_yesterday_streak_when_today_has_no_answer(self):
+        db = self.SessionLocal()
+        try:
+            records = [
+                QuizRecord(openid="test-user", quiz_type="phrase_meaning_choice", question_id=1, correct=True, answered_at=datetime(2026, 5, 19, 2, 0, tzinfo=timezone.utc)),
+                QuizRecord(openid="test-user", quiz_type="phrase_meaning_choice", question_id=2, correct=True, answered_at=datetime(2026, 5, 20, 2, 0, tzinfo=timezone.utc)),
+                QuizRecord(openid="test-user", quiz_type="phrase_meaning_choice", question_id=3, correct=True, answered_at=datetime(2026, 5, 21, 2, 0, tzinfo=timezone.utc)),
+            ]
+            db.add_all(records)
+            db.commit()
+        finally:
+            db.close()
+
+        original_now = quiz.datetime
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                value = datetime(2026, 5, 22, 8, 0, tzinfo=timezone.utc)
+                return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+        quiz.datetime = FixedDateTime
+        try:
+            response = self.client.get("/api/v1/quiz/stats")
+        finally:
+            quiz.datetime = original_now
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["streak_days"], 3)
+
+    def test_default_quiz_types_exclude_listening_and_keep_eight_core_types(self):
+        generated = self.client.post("/api/v1/quiz/generate", json={
+            "mode": "theme",
+            "question_count": 12,
+            "content_ids": [1],
+        })
+        self.assertEqual(generated.status_code, 200)
+        questions = generated.json()
+        question_types = {item["question_type"] for item in questions}
+        self.assertNotIn("phrase_listening_choice", question_types)
+        self.assertTrue(question_types.issubset({
+            "phrase_meaning_choice",
+            "word_meaning_choice",
+            "word_phonetic_choice",
+            "meaning_to_word_choice",
+            "word_context_choice",
+            "phrase_fill_input",
+            "meaning_to_phrase_choice",
+            "phrase_reorder",
+        }))
+
+    def test_meaning_to_word_question_hides_hint(self):
+        generated = self.client.post("/api/v1/quiz/generate", json={
+            "mode": "theme",
+            "question_count": 4,
+            "content_ids": [1],
+            "question_types": ["meaning_to_word_choice"],
+        })
+        self.assertEqual(generated.status_code, 200)
+        questions = generated.json()
+        self.assertGreaterEqual(len(questions), 1)
+        for question in questions:
+            self.assertEqual(question["question_type"], "meaning_to_word_choice")
+            self.assertIn("哪个英文单词表示", question["prompt"])
+            self.assertIsNone(question["hint"])
+
+    def test_word_phonetic_question_exposes_chinese_meaning_hint(self):
+        generated = self.client.post("/api/v1/quiz/generate", json={
+            "mode": "theme",
+            "question_count": 4,
+            "content_ids": [1],
+            "question_types": ["word_phonetic_choice"],
+        })
+        self.assertEqual(generated.status_code, 200)
+        questions = generated.json()
+        self.assertGreaterEqual(len(questions), 1)
+        meanings = {"espresso": "浓缩咖啡", "latte": "拿铁", "mocha": "摩卡", "cappuccino": "卡布奇诺"}
+        for question in questions:
+            self.assertEqual(question["question_type"], "word_phonetic_choice")
+            answer = next(option["text"] for option in question["options"] if option["is_answer"])
+            self.assertEqual(question["hint"], meanings[answer])
+
+    def test_phrase_reorder_uses_chinese_prompt_and_hides_hint(self):
+        generated = self.client.post("/api/v1/quiz/generate", json={
+            "mode": "theme",
+            "question_count": 4,
+            "content_ids": [1],
+            "question_types": ["phrase_reorder"],
+        })
+        self.assertEqual(generated.status_code, 200)
+        questions = generated.json()
+        self.assertGreaterEqual(len(questions), 1)
+        for question in questions:
+            self.assertEqual(question["question_type"], "phrase_reorder")
+            self.assertIn("请根据中文意思", question["prompt"])
+            self.assertNotIn("例句", question["prompt"])
+            self.assertIsNone(question["hint"])
+
+    def test_phrase_context_question_uses_standard_choice_options(self):
+        generated = self.client.post("/api/v1/quiz/generate", json={
+            "mode": "theme",
+            "question_count": 4,
+            "content_ids": [1],
+            "question_types": ["phrase_fill_input"],
+        })
+        self.assertEqual(generated.status_code, 200)
+        questions = generated.json()
+        self.assertGreaterEqual(len(questions), 1)
+        for question in questions:
+            self.assertEqual(question["question_type"], "phrase_fill_input")
+            self.assertEqual(question["interaction_type"], "choice")
+            self.assertIn("选择合适的短语", question["prompt"])
+            self.assertEqual([option["key"] for option in question["options"]], ["A", "B", "C", "D"])
 
 
 if __name__ == "__main__":

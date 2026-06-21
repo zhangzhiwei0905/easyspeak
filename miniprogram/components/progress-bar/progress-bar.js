@@ -10,7 +10,7 @@ Component({
     },
     color: {
       type: String,
-      value: '#667eea'
+      value: '#007AFF'
     },
     height: {
       type: Number,

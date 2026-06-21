@@ -21,7 +21,7 @@
 
   <!-- ========== Error State ========== -->
   <view class="error-state" wx:if="{{error && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <text class="error-state__icon">!</text>
     <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
     <view class="error-state__actions">
       <button class="btn btn-primary btn-sm" bindtap="onRetry">重新加载</button>
@@ -51,7 +51,7 @@
 
       <!-- Source tag -->
       <view class="phrase-hero-card__source" wx:if="{{source}}">
-        <text class="phrase-hero-card__source-icon">🎬</text>
+        <text class="phrase-hero-card__source-icon"></text>
         <text class="phrase-hero-card__source-text">{{source}}</text>
       </view>
     </view>
@@ -59,7 +59,7 @@
     <!-- Example Sentences -->
     <view class="examples-section animate-fade-in" wx:if="{{examples.length > 0}}" style="animation-delay: 0.1s">
       <view class="section-label">
-        <text class="section-label__icon">💬</text>
+        <text class="section-label__icon"></text>
         <text class="section-label__text">例句 ({{examples.length}})</text>
       </view>
 
@@ -87,23 +87,23 @@
         <view class="mastery-card__stars">
           <view class="mastery-star {{masteryRating >= 1 ? 'mastery-star--active' : ''}}"
                 data-rating="1" bindtap="onRateStar">
-            <text class="mastery-star__icon">★</text>
+            <text class="mastery-star__icon">·</text>
           </view>
           <view class="mastery-star {{masteryRating >= 2 ? 'mastery-star--active' : ''}}"
                 data-rating="2" bindtap="onRateStar">
-            <text class="mastery-star__icon">★</text>
+            <text class="mastery-star__icon">·</text>
           </view>
           <view class="mastery-star {{masteryRating >= 3 ? 'mastery-star--active' : ''}}"
                 data-rating="3" bindtap="onRateStar">
-            <text class="mastery-star__icon">★</text>
+            <text class="mastery-star__icon">·</text>
           </view>
           <view class="mastery-star {{masteryRating >= 4 ? 'mastery-star--active' : ''}}"
                 data-rating="4" bindtap="onRateStar">
-            <text class="mastery-star__icon">★</text>
+            <text class="mastery-star__icon">·</text>
           </view>
           <view class="mastery-star {{masteryRating >= 5 ? 'mastery-star--active' : ''}}"
                 data-rating="5" bindtap="onRateStar">
-            <text class="mastery-star__icon">★</text>
+            <text class="mastery-star__icon">·</text>
           </view>
         </view>
         <text class="mastery-card__label">

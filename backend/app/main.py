@@ -4,8 +4,38 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import engine, Base
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 settings = get_settings()
+
+
+def _ensure_word_enrichment_columns():
+    """Add new nullable word enrichment columns for existing non-migrated DBs."""
+    inspector = inspect(engine)
+    if "words" not in inspector.get_table_names():
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("words")}
+    missing = [
+        column for column in ("usage_note", "context_meanings")
+        if column not in existing
+    ]
+    if not missing:
+        return
+
+    with engine.begin() as conn:
+        for column in missing:
+            try:
+                conn.execute(text(f"ALTER TABLE words ADD COLUMN {column} TEXT"))
+            except SQLAlchemyError as exc:
+                # Multiple uvicorn workers can race during first deploy. Re-check
+                # before surfacing the error so startup remains idempotent.
+                refreshed = {
+                    col["name"] for col in inspect(conn).get_columns("words")
+                }
+                if column not in refreshed:
+                    raise exc
 
 
 @asynccontextmanager
@@ -14,6 +44,7 @@ async def lifespan(app: FastAPI):
     # Import all models to register them with Base
     import app.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _ensure_word_enrichment_columns()
     yield
 
 

@@ -3,16 +3,83 @@ const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const auth = require('../../utils/auth')
 
+function numberOrZero(value) {
+  var num = Number(value)
+  return isFinite(num) ? num : 0
+}
+
+function hasField(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key)
+}
+
+function buildStreakSubtext(stats) {
+  var todayActivity = stats.todayActivity || {}
+  var learnSessions = numberOrZero(todayActivity.learn_sessions)
+  var reviewItems = numberOrZero(todayActivity.review_items)
+  var quizAnswers = numberOrZero(todayActivity.quiz_answers)
+  var totalToday = learnSessions + reviewItems + quizAnswers
+
+  if (totalToday > 0) {
+    return '今日已完成：学习 ' + learnSessions + ' 次 · 复习 ' + reviewItems + ' 项 · 测验 ' + quizAnswers + ' 题'
+  }
+
+  if (stats.activeStreakDays > 0) {
+    return '连续保持中，今天完成一次练习即可续上'
+  }
+
+  return '今天完成一次学习即可重新开始连续记录'
+}
+
+function buildCompactStreakSubtext(stats) {
+  var todayActivity = stats.todayActivity || {}
+  var learnSessions = numberOrZero(todayActivity.learn_sessions)
+  var reviewItems = numberOrZero(todayActivity.review_items)
+  var quizAnswers = numberOrZero(todayActivity.quiz_answers)
+  var totalToday = learnSessions + reviewItems + quizAnswers
+
+  if (totalToday > 0) {
+    return '今日 ' + totalToday + ' 次有效练习'
+  }
+
+  if (stats.activeStreakDays > 0) {
+    return '今天练一次即可续上'
+  }
+
+  return '完成一次即可开始'
+}
+
+function normalizeStats(data) {
+  data = data || {}
+  var activeStreakDays = hasField(data, 'active_streak_days')
+    ? numberOrZero(data.active_streak_days)
+    : numberOrZero(data.study_streak || data.studyStreak)
+  var stats = {
+    studyStreak: activeStreakDays,
+    activeStreakDays: activeStreakDays,
+    legacyStudyStreak: numberOrZero(data.study_streak || data.studyStreak),
+    totalPhrases: numberOrZero(data.total_phrases || data.totalPhrases),
+    totalWords: numberOrZero(data.total_words || data.totalWords),
+    masteredPhrases: numberOrZero(data.mastered_phrases || data.masteredPhrases),
+    masteredWords: numberOrZero(data.mastered_words || data.masteredWords),
+    totalQuiz: numberOrZero(data.total_quiz || data.totalQuiz),
+    avgAccuracy: numberOrZero(data.avg_accuracy || data.avgAccuracy),
+    lastActiveDate: data.last_active_date || data.lastActiveDate || '',
+    todayActivity: data.today_activity || data.todayActivity || {
+      learn_sessions: 0,
+      review_items: 0,
+      quiz_answers: 0
+    },
+    streakSources: data.streak_sources || data.streakSources || []
+  }
+  stats.streakSubtext = buildStreakSubtext(stats)
+  stats.streakCompactText = buildCompactStreakSubtext(stats)
+  return stats
+}
+
 Page({
   data: {
     userInfo: {},
-    stats: {
-      studyStreak: 0,
-      totalPhrases: 0,
-      totalWords: 0,
-      totalQuiz: 0,
-      avgAccuracy: 0
-    },
+    stats: normalizeStats({}),
     achievements: [],
     achievementGroups: []
   },
@@ -52,16 +119,7 @@ Page({
 
     api.get('/review/progress/summary')
       .then(function(data) {
-        var stats = {
-          studyStreak: data.study_streak || data.studyStreak || 0,
-          totalPhrases: data.total_phrases || data.totalPhrases || 0,
-          totalWords: data.total_words || data.totalWords || 0,
-          masteredPhrases: data.mastered_phrases || data.masteredPhrases || 0,
-          masteredWords: data.mastered_words || data.masteredWords || 0,
-          totalQuiz: data.total_quiz || data.totalQuiz || 0,
-          avgAccuracy: data.avg_accuracy || data.avgAccuracy || 0
-        }
-        self.setData({ stats: stats })
+        self.setData({ stats: normalizeStats(data) })
       })
       .catch(function(err) {
         console.warn('[Profile] Failed to load stats from API:', err)
@@ -77,13 +135,13 @@ Page({
     var streakDays = storage.getStreakDays() || 0
     var calendar = storage.getStudyCalendar() || []
 
-    var stats = {
+    var stats = normalizeStats({
       studyStreak: streakDays,
       totalPhrases: 0,
       totalWords: 0,
       totalQuiz: 0,
       avgAccuracy: 0
-    }
+    })
 
     // Try to get quiz history for local stats
     var quizHistory = storage.get(storage.KEYS.QUIZ_HISTORY) || []
@@ -91,6 +149,8 @@ Page({
       stats.totalQuiz = quizHistory.length
       var correctCount = quizHistory.filter(function(q) { return q.correct }).length
       stats.avgAccuracy = Math.round((correctCount / quizHistory.length) * 100)
+      stats.streakSubtext = buildStreakSubtext(stats)
+      stats.streakCompactText = buildCompactStreakSubtext(stats)
     }
 
     this.setData({ stats: stats })

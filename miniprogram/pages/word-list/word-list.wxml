@@ -14,7 +14,7 @@
 
   <!-- ========== Error State ========== -->
   <view class="error-state" wx:if="{{error && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <text class="error-state__icon">!</text>
     <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
     <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
   </view>
@@ -33,7 +33,7 @@
     <view class="wl-toolbar animate-fade-in" style="animation-delay: 0.05s">
       <!-- Search bar -->
       <view class="search-bar">
-        <text class="search-bar__icon">🔍</text>
+        <text class="search-bar__icon"></text>
         <input class="search-bar__input"
                placeholder="搜索单词、音标或释义"
                placeholder-class="search-bar__placeholder"
@@ -41,7 +41,7 @@
                bindinput="onSearchInput"
                bindfocus="onSearchFocus"
                bindblur="onSearchBlur" />
-        <text class="search-bar__clear" wx:if="{{searchText}}" bindtap="onSearchClear">✕</text>
+        <text class="search-bar__clear" wx:if="{{searchText}}" bindtap="onSearchClear">·</text>
       </view>
 
       <!-- Controls row -->
@@ -62,7 +62,7 @@
         <!-- Compact toggle -->
         <view class="compact-toggle {{compactMode ? 'compact-toggle--active' : ''}}"
               bindtap="onToggleCompact">
-          <text class="compact-toggle__icon">{{compactMode ? '☰' : '▦'}}</text>
+          <text class="compact-toggle__icon">{{compactMode ? '' : '▦'}}</text>
           <text class="compact-toggle__label">{{compactMode ? '紧凑' : '展开'}}</text>
         </view>
       </view>
@@ -141,13 +141,13 @@
 
       <!-- Empty results -->
       <view class="wl-empty" wx:if="{{filteredWords.length === 0 && words.length > 0}}">
-        <text class="wl-empty__icon">🔍</text>
+        <text class="wl-empty__icon"></text>
         <text class="wl-empty__text">没有找到匹配的单词</text>
       </view>
 
       <!-- No words -->
       <view class="wl-empty" wx:if="{{words.length === 0}}">
-        <text class="wl-empty__icon">📚</text>
+        <text class="wl-empty__icon"></text>
         <text class="wl-empty__text">暂无单词内容</text>
       </view>
 

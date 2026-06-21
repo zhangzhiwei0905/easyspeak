@@ -52,12 +52,12 @@ Page({
     if (enabled) {
       wx.setNavigationBarColor({
         frontColor: '#ffffff',
-        backgroundColor: '#1a1a2e'
+        backgroundColor: '#000000'
       })
     } else {
       wx.setNavigationBarColor({
-        frontColor: '#ffffff',
-        backgroundColor: '#667eea'
+        frontColor: '#000000',
+        backgroundColor: '#F5F5F7'
       })
     }
   },

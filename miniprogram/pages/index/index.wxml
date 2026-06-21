@@ -3,6 +3,21 @@
 
   <!-- ========== Loading Skeleton ========== -->
   <view class="skeleton" wx:if="{{loading}}">
+    <view class="home-loading">
+      <view class="home-loading__dots">
+        <view class="home-loading__dot"></view>
+        <view class="home-loading__dot"></view>
+        <view class="home-loading__dot"></view>
+      </view>
+      <text class="home-loading__title">{{loadingText}}</text>
+      <view class="home-loading__progress">
+        <view class="home-loading__track">
+          <view class="home-loading__fill" style="width: {{loadingProgress}}%"></view>
+        </view>
+        <text class="home-loading__value">{{loadingProgress}}%</text>
+      </view>
+      <text class="home-loading__hint">首次打开会同步今日短语、单词和学习进度</text>
+    </view>
     <view class="skeleton__date-picker">
       <view class="skeleton__line skeleton__line--short"></view>
     </view>
@@ -30,7 +45,9 @@
 
   <!-- ========== Error State ========== -->
   <view class="error-state" wx:if="{{error && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <view class="error-state__icon-wrap">
+      <text class="error-state__icon-text">!</text>
+    </view>
     <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
     <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
   </view>
@@ -44,7 +61,6 @@
       </view>
       <view class="date-picker__center" bindtap="onOpenCalendar">
         <text class="date-picker__date">{{currentDateDisplay}} {{currentWeekday}}</text>
-        <text class="date-picker__icon" style="margin-left: 8rpx; font-size: 24rpx; color: var(--color-primary);">📅</text>
       </view>
       <view class="date-picker__nav" bindtap="onNextDate">
         <text class="date-picker__arrow {{currentDate >= today ? 'date-picker__arrow--disabled' : ''}}">›</text>
@@ -53,7 +69,9 @@
 
     <!-- ========== Empty State ========== -->
     <view class="empty-state" wx:if="{{isEmpty}}">
-      <text class="empty-state__icon">📭</text>
+      <view class="empty-state__icon-wrap">
+        <text class="empty-state__icon-line">—</text>
+      </view>
       <text class="empty-state__title">暂无内容</text>
       <text class="empty-state__desc">{{currentDateDisplay}} {{currentWeekday}} 暂无推送内容</text>
       <text class="empty-state__hint">内容每天更新，敬请期待</text>
@@ -63,9 +81,8 @@
     <block wx:if="{{!isEmpty}}">
 
     <!-- 2. Today's Push Card -->
-    <view class="push-card card-gradient animate-fade-in">
+    <view class="push-card animate-fade-in">
       <view class="push-card__header">
-        <text class="push-card__emoji">📝</text>
         <view class="push-card__theme">
           <text class="push-card__theme-zh">{{content.theme_zh}}</text>
           <text class="push-card__theme-en">{{content.theme_en}}</text>
@@ -80,14 +97,14 @@
       <view class="push-card__actions" wx:if="{{isToday}}">
         <view class="push-card__btn-group" wx:if="{{canLearnPhrase || canLearnWord}}">
           <view class="push-card__btn push-card__btn--phrase" bindtap="onStartLearnPhrase" wx:if="{{canLearnPhrase}}">
-            <text>📝 学短语</text>
+            <text>学短语</text>
           </view>
           <view class="push-card__btn push-card__btn--word" bindtap="onStartLearnWord" wx:if="{{canLearnWord}}">
-            <text>📚 学单词</text>
+            <text>学单词</text>
           </view>
         </view>
         <view class="push-card__stats" wx:if="{{allLearnedToday}}">
-          <text class="push-card__stat">✅ 今日学习已完成</text>
+          <text class="push-card__stat">今日学习已完成</text>
         </view>
         <view class="push-card__btn-detail" bindtap="onViewDetail">
           <text>查看详情 →</text>
@@ -103,7 +120,6 @@
     <view class="tomorrow-tip animate-slide-up" wx:if="{{isToday && tomorrowTheme}}">
       <text class="tomorrow-tip__label">明日主题</text>
       <view class="tomorrow-tip__main">
-        <text class="tomorrow-tip__emoji">🔮</text>
         <view class="tomorrow-tip__text">
           <text class="tomorrow-tip__title">{{tomorrowTheme.theme_zh}}</text>
           <text class="tomorrow-tip__subtitle">{{tomorrowDateDisplay}} {{tomorrowWeekday}} · {{tomorrowTheme.category_zh || tomorrowTheme.theme_en}}</text>
@@ -115,8 +131,7 @@
     <view class="section animate-slide-up" wx:if="{{phrases.length > 0}}">
       <view class="section__header">
         <view class="section__title-row">
-          <text class="section__icon">📝</text>
-          <text class="section__title">今日短语速览</text>
+          <text class="section__title">今日短语</text>
         </view>
       </view>
       <view class="phrases-list">
@@ -138,8 +153,7 @@
     <view class="section animate-slide-up" wx:if="{{words.length > 0}}" style="animation-delay: 0.1s">
       <view class="section__header">
         <view class="section__title-row">
-          <text class="section__icon">📖</text>
-          <text class="section__title">今日单词速览</text>
+          <text class="section__title">今日单词</text>
         </view>
       </view>
       <view class="words-list">
@@ -150,7 +164,9 @@
           phonetic="{{item.phonetic}}"
           partOfSpeech="{{item.partOfSpeech}}"
           meaning="{{item.meaning}}"
-          example="{{item.example}}">
+          example="{{item.example}}"
+          usageNote="{{item.usageNote}}"
+          contextMeanings="{{item.contextMeanings}}">
         </word-card>
       </view>
     </view>
@@ -159,32 +175,29 @@
     <view class="section progress-section animate-slide-up" style="animation-delay: 0.2s">
       <view class="section__header">
         <view class="section__title-row">
-          <text class="section__icon">📊</text>
           <text class="section__title">今日学习进度</text>
         </view>
       </view>
       <view class="progress-section__content card">
         <view class="progress-section__item">
           <view class="progress-section__label">
-            <text class="progress-section__label-icon">💬</text>
             <text class="progress-section__label-text">短语</text>
           </view>
-          <progress-bar 
-            current="{{phraseProgress.current}}" 
-            total="{{phraseProgress.total}}" 
-            color="#667eea"
+          <progress-bar
+            current="{{phraseProgress.current}}"
+            total="{{phraseProgress.total}}"
+            color="#007AFF"
             height="20">
           </progress-bar>
         </view>
         <view class="progress-section__item">
           <view class="progress-section__label">
-            <text class="progress-section__label-icon">📚</text>
             <text class="progress-section__label-text">单词</text>
           </view>
-          <progress-bar 
-            current="{{wordProgress.current}}" 
-            total="{{wordProgress.total}}" 
-            color="#764ba2"
+          <progress-bar
+            current="{{wordProgress.current}}"
+            total="{{wordProgress.total}}"
+            color="#007AFF"
             height="20">
           </progress-bar>
         </view>
@@ -195,13 +208,12 @@
     <view class="section review-section animate-slide-up" style="animation-delay: 0.3s" wx:if="{{reviewDueCount > 0}}">
       <view class="review-card card">
         <view class="review-card__header">
-          <text class="review-card__icon">🧠</text>
           <view class="review-card__title-wrap">
             <text class="review-card__title">今日待复习</text>
             <view class="badge">{{reviewDueCount}}</view>
           </view>
         </view>
-        <text class="review-card__desc">有 {{reviewDueCount}} 个内容到了复习时间，快来巩固一下吧！</text>
+        <text class="review-card__desc">有 {{reviewDueCount}} 个内容到了复习时间，快来巩固一下吧</text>
         <view class="review-card__action" bindtap="onStartReview">
           <text class="review-card__btn-text">开始复习</text>
           <text class="review-card__btn-arrow">→</text>
@@ -212,8 +224,7 @@
     <!-- No review needed -->
     <view class="section animate-slide-up" style="animation-delay: 0.3s" wx:if="{{reviewDueCount === 0}}">
       <view class="review-done-card card">
-        <text class="review-done-card__icon">✅</text>
-        <text class="review-done-card__text">暂无待复习内容，继续保持！</text>
+        <text class="review-done-card__text">暂无待复习内容，继续保持</text>
       </view>
     </view>
 

@@ -4,6 +4,14 @@
     <view class="word-row__left">
       <text class="word-row__word">{{word}}</text>
       <text class="word-row__pos" wx:if="{{partOfSpeech}}">{{partOfSpeech}}</text>
+      <view class="word-row__speaker {{isPlaying ? 'word-row__speaker--playing' : ''}}" catchtap="onPlayUS">
+        <view class="speaker-icon">
+          <view class="speaker-icon__body"></view>
+          <view class="speaker-icon__wave speaker-icon__wave--1"></view>
+          <view class="speaker-icon__wave speaker-icon__wave--2"></view>
+          <view class="speaker-icon__wave speaker-icon__wave--3"></view>
+        </view>
+      </view>
     </view>
     <view class="word-row__right">
       <text class="word-row__meaning">{{meaning}}</text>
@@ -11,13 +19,33 @@
     </view>
   </view>
 
-  <!-- 展开状态：显示音标 + 例句 -->
+  <!-- 展开状态：音标 + 发音 + 例句 -->
   <view class="word-row__detail" wx:if="{{expanded}}">
-    <text class="word-row__phonetic" wx:if="{{phonetic}}">{{phonetic}}</text>
+    <view class="word-row__phonetic-row" wx:if="{{phonetic}}">
+      <text class="word-row__phonetic">{{phonetic}}</text>
+      <view class="word-row__accent-btns">
+        <text class="word-row__accent-btn {{isPlaying && playingType === 'us' ? 'word-row__accent-btn--active' : ''}}" catchtap="onPlayUS">美式</text>
+        <text class="word-row__accent-sep">·</text>
+        <text class="word-row__accent-btn {{isPlaying && playingType === 'uk' ? 'word-row__accent-btn--active' : ''}}" catchtap="onPlayUK">英式</text>
+      </view>
+    </view>
     <view class="word-row__divider"></view>
     <view class="word-row__example-block" wx:if="{{example}}">
       <text class="word-row__example-label">例句</text>
       <text class="word-row__example">{{example}}</text>
+    </view>
+    <view class="word-row__example-block" wx:if="{{usageNote}}">
+      <text class="word-row__example-label">用法</text>
+      <text class="word-row__example">{{usageNote}}</text>
+    </view>
+    <view class="word-row__context-list" wx:if="{{displayContextMeanings && displayContextMeanings.length > 0}}">
+      <text class="word-row__example-label">语境</text>
+      <view class="word-row__context" wx:for="{{displayContextMeanings}}" wx:key="context">
+        <view class="word-row__context-copy">
+          <text class="word-row__context-meaning">{{item.context}}：{{item.meaning}}</text>
+          <text class="word-row__context-example" wx:if="{{item.example}}">{{item.example}}</text>
+        </view>
+      </view>
     </view>
   </view>
 </view>

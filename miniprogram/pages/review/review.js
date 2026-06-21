@@ -1,6 +1,12 @@
 const api = require('../../utils/api')
 const storage = require('../../utils/storage')
 const auth = require('../../utils/auth')
+const quizType = require('../../utils/quiz-type')
+
+function normalizeAnswer(text) {
+  return (text || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
 
 Page({
   data: {
@@ -25,7 +31,7 @@ Page({
     totalQuestionCount: 0,
     currentItem: {},
     reviewStage: 2,
-    reviewStageLabel: '理解',
+    reviewStageLabel: '',
     quizData: null,
     selectedKey: '',
     submitted: false,
@@ -221,6 +227,11 @@ Page({
         }
 
         var queue = self._buildReviewQueue(items)
+        if (queue.length === 0) {
+          wx.showToast({ title: '暂无可用复习题，请稍后再试', icon: 'none' })
+          self._loadOverviewData()
+          return
+        }
         self._masteryRatings = []
         self._reviewResults = {}
         self._completedReviewKeys = {}
@@ -260,25 +271,30 @@ Page({
     var queue = []
     for (var i = 0; i < items.length; i++) {
       var item = items[i]
-      queue.push({ item: item, stage: 2 })
-      queue.push({ item: item, stage: 3 })
-      queue.push({ item: item, stage: 4 })
+      var quizzes = item.review_quizzes || []
+      for (var q = 0; q < quizzes.length; q++) {
+        queue.push({ item: item, quiz: quizzes[q], questionIndex: q, itemQuestionCount: quizzes.length })
+      }
     }
     queue = this._shuffleList(queue)
 
-    // 尽量避免同一个单词/短语的题目连着出现；如果随机后相邻，就向后找一个不同 item 交换。
-    for (var q = 1; q < queue.length; q++) {
-      if (this._resultKey(queue[q].item) !== this._resultKey(queue[q - 1].item)) continue
-      for (var k = q + 1; k < queue.length; k++) {
-        if (this._resultKey(queue[k].item) !== this._resultKey(queue[q - 1].item)) {
-          var tmp = queue[q]
-          queue[q] = queue[k]
-          queue[k] = tmp
+    for (var index = 1; index < queue.length; index++) {
+      if (this._resultKey(queue[index].item) !== this._resultKey(queue[index - 1].item)) continue
+      for (var swapIndex = index + 1; swapIndex < queue.length; swapIndex++) {
+        if (this._resultKey(queue[swapIndex].item) !== this._resultKey(queue[index - 1].item)) {
+          var tmp = queue[index]
+          queue[index] = queue[swapIndex]
+          queue[swapIndex] = tmp
           break
         }
       }
     }
     return queue
+  },
+
+  _quizTypeLabel(quiz) {
+    var meta = quizType.getQuizTypeMeta((quiz || {}).question_type || '')
+    return meta.label || '复习题'
   },
 
   _loadQueueQuestion(index) {
@@ -288,19 +304,21 @@ Page({
       return
     }
     var item = entry.item
-    var stage = entry.stage
-    var label = stage === 2 ? '理解' : (stage === 3 ? '练习' : '确认')
+    var quiz = entry.quiz || {}
+    var interactionType = quiz.interaction_type || 'choice'
     var base = {
       currentIndex: index,
       currentItem: item,
-      reviewStage: stage,
-      reviewStageLabel: label,
+      reviewStage: 2,
+      reviewStageLabel: this._quizTypeLabel(quiz),
       selectedKey: '',
       submitted: false,
       isCorrect: false,
       correctOptionText: '',
-      quizData: null,
+      quizData: quiz,
       finalQuiz: null,
+      finalQuizMode: '',
+      finalQuizAnswer: '',
       wordSlots: [],
       availableTiles: [],
       wordSelectSubmitted: false,
@@ -310,27 +328,32 @@ Page({
       spellingCorrect: false,
       submitting: false
     }
-    if (stage === 2) {
-      base.quizData = item.stage2_quiz
+    if (interactionType === 'choice') {
+      base.quizData = quiz
       this.setData(base)
       return
     }
-    if (stage === 3) {
-      base.quizData = item.stage3_quiz
-      this.setData(base)
-      return
-    }
+    base.reviewStage = 4
+    base.finalQuiz = quiz
+    base.finalQuizMode = interactionType
+    base.finalQuizAnswer = (quiz.accepted_answers && quiz.accepted_answers[0]) || quiz.correct_phrase || quiz.answer || ''
     this.setData(base)
-    this._enterFinalQuiz()
+    this._enterInteractiveQuiz(quiz)
+  },
+
+  _markQuestionResult(correct) {
+    var entry = this.data.quizQueue[this.data.currentIndex] || {}
+    var item = entry.item || this.data.currentItem
+    var key = this._resultKey(item)
+    if (!this._reviewResults[key]) {
+      this._reviewResults[key] = { total: 0, correct: 0 }
+    }
+    this._reviewResults[key].total += 1
+    if (correct) this._reviewResults[key].correct += 1
   },
 
   _markStageResult(stage, correct) {
-    var item = this.data.currentItem
-    var key = this._resultKey(item)
-    if (!this._reviewResults[key]) {
-      this._reviewResults[key] = { stage2: undefined, stage3: undefined, final: undefined }
-    }
-    this._reviewResults[key][stage] = !!correct
+    this._markQuestionResult(correct)
   },
 
   onReviewSelectOption(e) {
@@ -346,20 +369,22 @@ Page({
     }
     var quiz = this.data.quizData || {}
     var selectedKey = this.data.selectedKey
-    var isCorrect = selectedKey === quiz.answer
-    var correctText = ''
     var options = quiz.options || []
+    var correctOption = null
+    var selectedOption = null
     for (var i = 0; i < options.length; i++) {
-      if (options[i].key === quiz.answer) {
-        correctText = options[i].key + '. ' + options[i].text
-        break
-      }
+      var isAnswer = !!options[i].is_answer || options[i].key === quiz.answer_key
+      if (isAnswer) correctOption = options[i]
+      if (options[i].key === selectedKey) selectedOption = options[i]
     }
-    this._markStageResult(this.data.reviewStage === 2 ? 'stage2' : 'stage3', isCorrect)
+    var isCorrect = !!correctOption && selectedKey === correctOption.key
+    var correctText = correctOption ? correctOption.key + '. ' + correctOption.text : ((quiz.accepted_answers || [])[0] || '')
+    this._markQuestionResult(isCorrect)
     this.setData({
       submitted: true,
       isCorrect: isCorrect,
-      correctOptionText: correctText
+      correctOptionText: correctText,
+      selectedKey: selectedOption ? selectedKey : ''
     })
     wx.vibrateShort({ type: isCorrect ? 'light' : 'heavy' })
   },
@@ -369,17 +394,20 @@ Page({
     this._advanceAfterQuestion()
   },
 
-  _enterFinalQuiz() {
-    var item = this.data.currentItem
-    var quiz = item.final_quiz || {}
-    if (quiz.type === 'word_select') {
-      var words = (quiz.correct_phrase || item.text || '').split(' ')
+  _enterInteractiveQuiz(quiz) {
+    quiz = quiz || {}
+    if (quiz.interaction_type === 'word_select' || quiz.interaction_type === 'reorder') {
+      var answer = (quiz.accepted_answers && quiz.accepted_answers[0]) || quiz.correct_phrase || this.data.currentItem.text || ''
+      var words = answer.split(' ').filter(Boolean)
       var slots = words.map(function () { return { text: '', isCorrect: null } })
-      var tiles = (quiz.word_tiles || words).map(function (text) { return { text: text, used: false } })
+      var tiles = (quiz.options || []).map(function (option) { return { key: option.key, text: option.text, used: false } })
+      if (!tiles.length) {
+        tiles = words.map(function (text, index) { return { key: String(index), text: text, used: false } })
+      }
       this.setData({
-        reviewStage: 4,
-        reviewStageLabel: '确认',
         finalQuiz: quiz,
+        finalQuizMode: quiz.interaction_type || quiz.type || '',
+        finalQuizAnswer: answer,
         wordSlots: slots,
         availableTiles: tiles,
         wordSelectSubmitted: false,
@@ -391,20 +419,20 @@ Page({
       return
     }
 
-    var answer = quiz.answer || item.text || ''
+    var spellingAnswer = (quiz.accepted_answers && quiz.accepted_answers[0]) || quiz.answer || this.data.currentItem.text || ''
     var chars = []
-    for (var i = 0; i < answer.length; i++) {
-      if (/[a-zA-Z]/.test(answer[i])) {
-        chars.push({ text: '', expected: answer[i].toLowerCase(), isCorrect: null })
+    for (var i = 0; i < spellingAnswer.length; i++) {
+      if (/[a-zA-Z]/.test(spellingAnswer[i])) {
+        chars.push({ text: '', expected: spellingAnswer[i].toLowerCase(), isCorrect: null })
       }
     }
     var letters = (quiz.letters || chars.map(function (slot) { return slot.expected })).map(function (letter) {
       return { text: letter, used: false }
     })
     this.setData({
-      reviewStage: 4,
-      reviewStageLabel: '确认',
       finalQuiz: quiz,
+      finalQuizMode: quiz.interaction_type || quiz.type || '',
+      finalQuizAnswer: spellingAnswer,
       wordSlots: [],
       availableTiles: [],
       wordSelectSubmitted: false,
@@ -413,6 +441,10 @@ Page({
       spellingSubmitted: false,
       spellingCorrect: false
     })
+  },
+
+  _enterFinalQuiz() {
+    this._enterInteractiveQuiz(this.data.finalQuiz || {})
   },
 
   onReviewWordTileTap(e) {
@@ -454,14 +486,15 @@ Page({
 
   _checkReviewWordSelect() {
     var quiz = this.data.finalQuiz || {}
-    var correctWords = (quiz.correct_phrase || '').split(' ')
-    var allCorrect = true
+    var correctAnswer = (quiz.accepted_answers && quiz.accepted_answers[0]) || quiz.correct_phrase || ''
+    var correctWords = correctAnswer.split(' ')
+    var userAnswer = this.data.wordSlots.map(function (slot) { return slot.text || '' }).join(' ')
+    var allCorrect = normalizeAnswer(userAnswer) === normalizeAnswer(correctAnswer)
     var slots = this.data.wordSlots.map(function (slot, i) {
       var correct = (slot.text || '').toLowerCase() === (correctWords[i] || '').toLowerCase()
-      if (!correct) allCorrect = false
       return { text: slot.text, isCorrect: correct }
     })
-    this._markStageResult('final', allCorrect)
+    this._markQuestionResult(allCorrect)
     this.setData({ wordSlots: slots, wordSelectSubmitted: true })
     wx.vibrateShort({ type: allCorrect ? 'light' : 'heavy' })
   },
@@ -507,21 +540,27 @@ Page({
       if (!correct) allCorrect = false
       return { text: slot.text, expected: slot.expected, isCorrect: correct, keyIndex: slot.keyIndex }
     })
-    this._markStageResult('final', allCorrect)
+    this._markQuestionResult(allCorrect)
     this.setData({ spellingSlots: slots, spellingSubmitted: true, spellingCorrect: allCorrect })
     wx.vibrateShort({ type: allCorrect ? 'light' : 'heavy' })
   },
 
   onFinalNext() {
     var quiz = this.data.finalQuiz || {}
-    if (quiz.type === 'word_select' && !this.data.wordSelectSubmitted) return
-    if (quiz.type === 'spelling_keyboard' && !this.data.spellingSubmitted) return
+    var interactionType = quiz.interaction_type || quiz.type || ''
+    if ((interactionType === 'word_select' || interactionType === 'reorder') && !this.data.wordSelectSubmitted) return
+    if (interactionType === 'spelling_keyboard' && !this.data.spellingSubmitted) return
     this._advanceAfterQuestion()
   },
 
   _isItemReadyToComplete(item) {
-    var result = this._reviewResults[this._resultKey(item)] || {}
-    return result.stage2 !== undefined && result.stage3 !== undefined && result.final !== undefined
+    var key = this._resultKey(item)
+    var result = this._reviewResults[key] || {}
+    var expected = 0
+    for (var i = 0; i < this.data.quizQueue.length; i++) {
+      if (this._resultKey(this.data.quizQueue[i].item) === key) expected += 1
+    }
+    return expected > 0 && result.total >= expected
   },
 
   _advanceAfterQuestion() {
@@ -547,8 +586,10 @@ Page({
     if (self.data.submitting) return
     var key = self._resultKey(item)
     var result = self._reviewResults[key] || {}
-    var correctCount = (result.stage2 ? 1 : 0) + (result.stage3 ? 1 : 0) + (result.final ? 1 : 0)
-    var mastery = correctCount >= 3 ? 4 : (correctCount === 2 ? 3 : (correctCount === 1 ? 1 : 0))
+    var total = result.total || 0
+    var correctCount = result.correct || 0
+    var accuracy = total > 0 ? correctCount / total : 0
+    var mastery = accuracy >= 1 ? 4 : (accuracy >= 0.7 ? 3 : (accuracy >= 0.4 ? 2 : (accuracy > 0 ? 1 : 0)))
     self.setData({ submitting: true })
     api.post('/review/complete', {
       item_id: item.id,
@@ -686,27 +727,48 @@ Page({
     })
   },
 
+  _getCompletedReviewCount() {
+    return this._masteryRatings.length
+  },
+
   exitSession() {
     var self = this
-    var reviewed = self._masteryRatings.length
-    var total = self.data.dueItems.length
-
-    if (reviewed > 0 && reviewed < total) {
-      wx.showModal({
-        title: '确认退出',
-        content: '已完成 ' + reviewed + '/' + total + ' 项，确定退出吗？',
-        confirmText: '退出',
-        cancelText: '继续复习',
-        success: function (res) {
-          if (res.confirm) {
-            self._showSummary()
-          }
-        }
-      })
+    if (self.data.submitting) {
+      wx.showToast({ title: '正在保存本题进度，请稍候', icon: 'none' })
       return
     }
 
-    self.backToOverview()
+    var reviewed = self._getCompletedReviewCount()
+    var total = self.data.dueItems.length
+    var hasUnfinishedCurrentItem = !!(self.data.currentItem && self.data.currentItem.id) &&
+      !self._completedReviewKeys[self._resultKey(self.data.currentItem)]
+    var content = ''
+
+    if (reviewed > 0) {
+      content = '已完成 ' + reviewed + '/' + total + ' 项，退出后会保存已完成进度，下次会从剩余待复习内容继续开始。'
+      if (hasUnfinishedCurrentItem) {
+        content += ' 当前这道未完成的题目不会保留。'
+      }
+    } else {
+      content = '现在退出后，本次未完成的题目不会保留。下次进入会从待复习内容重新开始。'
+    }
+
+    wx.showModal({
+      title: '退出智能复习',
+      content: content,
+      confirmText: '保存并退出',
+      cancelText: '继续复习',
+      success: function (res) {
+        if (!res.confirm) return
+        self.backToOverview(function () {
+          if (reviewed > 0) {
+            wx.showToast({ title: '进度已保存', icon: 'success' })
+          } else {
+            wx.showToast({ title: '已退出复习', icon: 'none' })
+          }
+        })
+      }
+    })
   },
 
   reviewAgain() {
@@ -714,18 +776,43 @@ Page({
     this.startReview()
   },
 
-  backToOverview() {
+  backToOverview(done) {
     this._masteryRatings = []
+    this._reviewResults = {}
+    this._completedReviewKeys = {}
     this.setData({
       mode: 'overview',
+      dueItems: [],
       quizQueue: [],
       currentIndex: 0,
       totalQuestionCount: 0,
       currentItem: {},
+      reviewStage: 2,
+      reviewStageLabel: '',
+      quizData: null,
+      selectedKey: '',
+      submitted: false,
+      isCorrect: false,
+      correctOptionText: '',
+      finalQuiz: null,
+      finalQuizMode: '',
+      finalQuizAnswer: '',
+      wordSlots: [],
+      availableTiles: [],
+      wordSelectSubmitted: false,
+      spellingSlots: [],
+      keyboardLetters: [],
+      spellingSubmitted: false,
+      spellingCorrect: false,
       isFlipped: false,
       submitting: false
     })
     this._loadOverviewData()
+      .finally(function () {
+        if (typeof done === 'function') {
+          done()
+        }
+      })
   },
 
   goToQuiz() {

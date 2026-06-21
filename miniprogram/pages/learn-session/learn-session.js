@@ -1,11 +1,11 @@
 /**
  * EasySpeak — Immersive Learning Session (沉浸式学习会话)
  *
- * Four-stage learning flow:
- *   Stage 1: Exposure  — show card, read aloud
- *   Stage 2: Comprehension — multiple-choice meaning quiz
- *   Stage 3: Practice  — fill-in-the-blank / reverse quiz
- *   Stage 4: Mastery   — delayed recall self-assessment
+ * Learning flow:
+ *   Stage 1: Study all cards
+ *   Stage 2: Comprehension quiz for learned content
+ *   Stage 3: Practice quiz for learned content
+ *   Stage 4: Mastery recall
  *
  * After all stages, show a learning report.
  */
@@ -17,6 +17,7 @@ var navigation = require('../../utils/navigation')
 
 var BATCH_SIZE = 5
 var MIN_EXPOSURE_MS = 4000 // minimum time on exposure card
+var PREPARE_PROGRESS_INTERVAL = 260
 
 Page({
   data: {
@@ -24,6 +25,8 @@ Page({
     loading: true,
     loadError: false,
     errorMsg: '',
+    prepareProgress: 0,
+    prepareText: '正在准备学习内容...',
     learnType: 'phrase', // 'phrase' or 'word'
     contentId: '',
     themeZh: '',
@@ -33,15 +36,15 @@ Page({
     // 'learning' | 'stage4' | 'report'
     phase: 'learning',
 
-    // --- stage tracking (stages 1-3) ---
-    stage: 1, // current stage: 1=exposure, 2=comprehension, 3=practice
-    stageLabels: { 1: '认识', 2: '理解', 3: '练习' },
+    // --- stage tracking ---
+    stage: 1, // 1=study all, 2=comprehension quiz, 3=practice quiz
+    stageLabels: { 1: '统一学习', 2: '理解测验', 3: '练习测验' },
 
     // --- items ---
     allItems: [],       // all items from API
-    queue: [],          // current working queue for stages 1-3
-    retryQueue: [],     // items that need retry
-    currentIndex: 0,    // index into queue
+    queue: [],          // study queue for stage 1, quiz queue for stage 2/3
+    retryQueue: [],     // quiz entries that need retry
+    currentIndex: 0,    // index into current queue
     currentItem: null,  // the item being displayed
 
     // --- progress counters ---
@@ -53,6 +56,7 @@ Page({
 
     // --- stage 2 & 3: quiz ---
     quizData: null,     // current quiz object {question, options, answer, hint}
+    quizEntry: null,    // current quiz queue entry {item, stage, quiz}
     selectedKey: '',
     submitted: false,
     isCorrect: false,
@@ -80,6 +84,7 @@ Page({
   },
 
   _exposureTimer: null,
+  _prepareTimer: null,
   _audioCtx: null,
   _attemptState: null,
   _correctAudio: null,
@@ -123,6 +128,7 @@ Page({
   onUnload: function () {
     this._saveDraft()
     this._clearExposureTimer()
+    this._clearPrepareProgress()
     this._destroyAudio()
     if (this._correctAudio) { try { this._correctAudio.stop(); this._correctAudio.destroy() } catch (e) {} }
     if (this._wrongAudio) { try { this._wrongAudio.stop(); this._wrongAudio.destroy() } catch (e) {} }
@@ -134,7 +140,13 @@ Page({
 
   _createSession: function () {
     var self = this
-    self.setData({ loading: true, loadError: false })
+    self.setData({
+      loading: true,
+      loadError: false,
+      prepareProgress: 0,
+      prepareText: self._getPrepareInitialText()
+    })
+    self._startPrepareProgress()
 
     auth.ensureLogin().then(function () {
       return api.post('/learn/session', {
@@ -143,6 +155,7 @@ Page({
       })
     }).then(function (data) {
       if (!data || !data.items || data.items.length === 0) {
+        self._clearPrepareProgress()
         self.setData({ loading: false, loadError: true, errorMsg: '没有可学习的内容' })
         return
       }
@@ -156,37 +169,103 @@ Page({
           stage3FirstCorrect: false,
           stage2Attempted: false,
           stage3Attempted: false,
+          stage2Passed: false,
+          stage3Passed: false,
           enteredRetry: false,
           completed: false
         }
       })
 
-      self.setData({
-        loading: false,
-        themeZh: data.theme_zh || '',
-        themeEn: data.theme_en || '',
-        allItems: items,
-        totalItems: items.length,
-        queue: items.slice(),
-        currentIndex: 0,
-        currentItem: items[0],
-        stage: 1,
-        phase: 'learning',
-        canProceed: false
-      }, function () {
-        self._saveDraft()
-      })
+      self._finishPrepareProgress(function () {
+        self.setData({
+          loading: false,
+          themeZh: data.theme_zh || '',
+          themeEn: data.theme_en || '',
+          allItems: items,
+          totalItems: items.length,
+          queue: items.slice(),
+          currentIndex: 0,
+          currentItem: items[0],
+          stage: 1,
+          phase: 'learning',
+          canProceed: false
+        }, function () {
+          self._saveDraft()
+        })
 
-      self._startExposureTimer()
-      self._playItemAudio(items[0])
+        self._startExposureTimer()
+        self._playItemAudio(items[0])
+      })
     }).catch(function (err) {
       console.error('[LearnSession] Create session failed:', err)
+      self._clearPrepareProgress()
       self.setData({
         loading: false,
         loadError: true,
         errorMsg: err.message || '加载失败'
       })
     })
+  },
+
+  _getPrepareInitialText: function () {
+    return this.data.learnType === 'word'
+      ? '正在准备单词学习...'
+      : '正在准备短语学习...'
+  },
+
+  _startPrepareProgress: function () {
+    var self = this
+    self._clearPrepareProgress()
+    self._prepareTimer = setInterval(function () {
+      var current = self.data.prepareProgress || 0
+      if (current >= 98) {
+        self.setData({
+          prepareText: self.data.learnType === 'word'
+            ? 'AI 还在补充单词语境，请稍等...'
+            : 'AI 还在生成练习题，请稍等...'
+        })
+        return
+      }
+
+      var next = current + (current < 35 ? 11 : current < 70 ? 7 : current < 92 ? 3 : 1)
+      if (next > 98) next = 98
+
+      var text = self.data.learnType === 'word'
+        ? '正在补充单词语境...'
+        : '正在生成短语题目...'
+      if (next >= 35 && next < 70) {
+        text = '正在筛选合适练习...'
+      } else if (next >= 70 && next < 92) {
+        text = '正在整理学习卡片...'
+      } else if (next >= 92) {
+        text = self.data.learnType === 'word'
+          ? 'AI 正在完成单词语境和题目...'
+          : 'AI 正在完成短语练习题...'
+      }
+
+      self.setData({
+        prepareProgress: next,
+        prepareText: text
+      })
+    }, PREPARE_PROGRESS_INTERVAL)
+  },
+
+  _clearPrepareProgress: function () {
+    if (this._prepareTimer) {
+      clearInterval(this._prepareTimer)
+      this._prepareTimer = null
+    }
+  },
+
+  _finishPrepareProgress: function (done) {
+    this._clearPrepareProgress()
+    this.setData({
+      prepareProgress: 100,
+      prepareText: '学习内容准备完成'
+    })
+    setTimeout(function () {
+      if (typeof done === 'function') done()
+    }, 180)
   },
 
   // ================================================
@@ -275,18 +354,58 @@ Page({
 
   onExposureNext: function () {
     if (!this.data.canProceed) return
-    // Move to Stage 2
-    var item = this.data.currentItem
-    var quiz = item.stage2_quiz
+    var nextIndex = this.data.currentIndex + 1
 
+    if (nextIndex < this.data.allItems.length) {
+      var nextItem = this.data.allItems[nextIndex]
+      this.setData({
+        currentIndex: nextIndex,
+        currentItem: nextItem,
+        canProceed: false
+      }, this._saveDraft.bind(this))
+      this._startExposureTimer()
+      this._playItemAudio(nextItem)
+      return
+    }
+
+    this._enterQuizPhase()
+  },
+
+  _enterQuizPhase: function () {
+    var quizQueue = this._buildQuizQueue(this.data.allItems)
+    if (quizQueue.length === 0) {
+      this._enterStage4()
+      return
+    }
+
+    var firstEntry = quizQueue[0]
     this.setData({
-      stage: 2,
-      quizData: quiz,
+      queue: quizQueue,
+      retryQueue: [],
+      currentIndex: 0,
+      currentItem: firstEntry.item,
+      stage: firstEntry.stage,
+      quizData: firstEntry.quiz,
+      quizEntry: firstEntry,
       selectedKey: '',
       submitted: false,
       isCorrect: false,
       correctOptionText: ''
     }, this._saveDraft.bind(this))
+  },
+
+  _buildQuizQueue: function (items) {
+    var stage2 = []
+    var stage3 = []
+    ;(items || []).forEach(function (item) {
+      if (item.stage2_quiz) {
+        stage2.push({ item: item, stage: 2, quiz: item.stage2_quiz })
+      }
+      if (item.stage3_quiz) {
+        stage3.push({ item: item, stage: 3, quiz: item.stage3_quiz })
+      }
+    })
+    return stage2.concat(stage3)
   },
 
   // ================================================
@@ -339,27 +458,33 @@ Page({
   onQuizNext: function () {
     if (!this.data.submitted) return
 
-    var stage = this.data.stage
+    var entry = this.data.quizEntry || {
+      item: this.data.currentItem,
+      stage: this.data.stage,
+      quiz: this.data.quizData
+    }
+    var stage = entry.stage
     var isCorrect = this.data.isCorrect
-    var item = this.data.currentItem
+    var item = entry.item
     var attempts = this._attemptState || {}
     var itemState = attempts[item.id] || {
       stage2FirstCorrect: false,
       stage3FirstCorrect: false,
       stage2Attempted: false,
       stage3Attempted: false,
+      stage2Passed: false,
+      stage3Passed: false,
       enteredRetry: false,
       completed: false
     }
 
     if (!isCorrect) {
-      // Wrong answer: add to retry queue (will be re-tested)
       var retryQueue = this.data.retryQueue.slice()
       var exists = retryQueue.some(function (entry) {
-        return entry.id === item.id
+        return entry.item.id === item.id && entry.stage === stage
       })
       if (!exists) {
-        retryQueue.push(item)
+        retryQueue.push(entry)
       }
       this.setData({ retryQueue: retryQueue })
       itemState.enteredRetry = true
@@ -369,6 +494,12 @@ Page({
       }
       if (stage === 3 && !itemState.stage3Attempted) {
         itemState.stage3FirstCorrect = true
+      }
+      if (stage === 2) {
+        itemState.stage2Passed = true
+      }
+      if (stage === 3) {
+        itemState.stage3Passed = true
       }
     }
 
@@ -381,86 +512,73 @@ Page({
 
     this._attemptState[item.id] = itemState
 
-    if (stage === 2) {
-      // Move to Stage 3 for correct answers, or repeat Stage 2 is handled via retry
-      if (isCorrect) {
-        var quiz3 = item.stage3_quiz
+    this._refreshPassStats()
+    this._advanceToNextQuiz()
+  },
+
+  _advanceToNextQuiz: function () {
+    var nextIndex = this.data.currentIndex + 1
+    var queue = this.data.queue
+
+    if (nextIndex >= queue.length) {
+      if (this.data.retryQueue.length > 0) {
+        var retryItems = this.data.retryQueue.slice()
+        this._shuffle(retryItems)
+        var firstRetry = retryItems[0]
         this.setData({
-          stage: 3,
-          quizData: quiz3,
+          queue: retryItems,
+          retryQueue: [],
+          currentIndex: 0,
+          currentItem: firstRetry.item,
+          stage: firstRetry.stage,
+          quizData: firstRetry.quiz,
+          quizEntry: firstRetry,
           selectedKey: '',
           submitted: false,
           isCorrect: false,
           correctOptionText: ''
         }, this._saveDraft.bind(this))
       } else {
-        // Wrong in stage 2: move to next item, this one goes to retry
-        this._advanceToNextItem()
-      }
-    } else if (stage === 3) {
-      // Stage 3 done (correct or wrong) — move to next item
-      if (isCorrect) {
-        var updates = {}
-        if (!itemState.completed) {
-          if (itemState.stage2FirstCorrect && itemState.stage3FirstCorrect && !itemState.enteredRetry) {
-            updates.firstPassCorrect = this.data.firstPassCorrect + 1
-          } else if (itemState.enteredRetry) {
-            updates.retryCorrect = this.data.retryCorrect + 1
-          }
-        }
-        itemState.completed = true
-        if (Object.keys(updates).length > 0) {
-        this.setData(updates, this._saveDraft.bind(this))
-      }
-      }
-      this._advanceToNextItem()
-    }
-  },
-
-  _advanceToNextItem: function () {
-    var nextIndex = this.data.currentIndex + 1
-    var queue = this.data.queue
-
-    if (nextIndex >= queue.length) {
-      // Check retry queue
-      if (this.data.retryQueue.length > 0) {
-        // Shuffle retry items and start a new round
-        var retryItems = this.data.retryQueue.slice()
-        this._shuffle(retryItems)
-        this.setData({
-          queue: retryItems,
-          retryQueue: [],
-          currentIndex: 0,
-          currentItem: retryItems[0],
-          stage: 1,
-          canProceed: false,
-          selectedKey: '',
-          submitted: false,
-          isCorrect: false,
-          retryCorrect: this.data.retryCorrect  // will increment below
-        }, this._saveDraft.bind(this))
-        this._startExposureTimer()
-        this._playItemAudio(retryItems[0])
-      } else {
-        // All items passed stages 1-3 → enter Stage 4
         this._enterStage4()
       }
       return
     }
 
-    var nextItem = queue[nextIndex]
+    var nextEntry = queue[nextIndex]
     this.setData({
       currentIndex: nextIndex,
-      currentItem: nextItem,
-      stage: 1,
-      canProceed: false,
+      currentItem: nextEntry.item,
+      stage: nextEntry.stage,
+      quizData: nextEntry.quiz,
+      quizEntry: nextEntry,
       selectedKey: '',
       submitted: false,
       isCorrect: false,
       correctOptionText: ''
     }, this._saveDraft.bind(this))
-    this._startExposureTimer()
-    this._playItemAudio(nextItem)
+  },
+
+  _refreshPassStats: function () {
+    var attempts = this._attemptState || {}
+    var firstPass = 0
+    var retryPass = 0
+
+    ;(this.data.allItems || []).forEach(function (item) {
+      var state = attempts[item.id]
+      if (!state || !state.stage2Passed || !state.stage3Passed) {
+        return
+      }
+      if (state.stage2FirstCorrect && state.stage3FirstCorrect && !state.enteredRetry) {
+        firstPass++
+      } else {
+        retryPass++
+      }
+    })
+
+    this.setData({
+      firstPassCorrect: firstPass,
+      retryCorrect: retryPass
+    }, this._saveDraft.bind(this))
   },
 
   _shuffle: function (arr) {
@@ -724,6 +842,7 @@ Page({
       totalItems: this.data.totalItems,
       canProceed: this.data.canProceed,
       quizData: this.data.quizData,
+      quizEntry: this.data.quizEntry,
       selectedKey: this.data.selectedKey,
       submitted: this.data.submitted,
       isCorrect: this.data.isCorrect,
@@ -780,6 +899,7 @@ Page({
       totalItems: draft.totalItems || (draft.allItems || []).length,
       canProceed: !!draft.canProceed,
       quizData: draft.quizData || null,
+      quizEntry: draft.quizEntry || null,
       selectedKey: draft.selectedKey || '',
       submitted: !!draft.submitted,
       isCorrect: !!draft.isCorrect,
@@ -802,7 +922,7 @@ Page({
     if (this.data.phase === 'learning' && this.data.stage === 1 && !this.data.canProceed) {
       this._startExposureTimer()
     }
-    if (this.data.phase === 'learning' && this.data.currentItem) {
+    if (this.data.phase === 'learning' && this.data.stage === 1 && this.data.currentItem) {
       this._playItemAudio(this.data.currentItem)
     }
     return true

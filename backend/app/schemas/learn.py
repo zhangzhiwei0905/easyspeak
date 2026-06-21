@@ -1,5 +1,5 @@
 """Pydantic schemas for immersive learning sessions."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Union
 from datetime import datetime
 
@@ -41,6 +41,8 @@ class LearnWordItem(BaseModel):
     part_of_speech: Optional[str] = None
     meaning: str
     example: Optional[str] = None
+    usage_note: Optional[str] = None
+    context_meanings: list[dict[str, str]] = Field(default_factory=list)
     # Pre-generated quizzes for stage 2 and 3
     stage2_quiz: LearnQuiz  # comprehension: English → Chinese meaning
     stage3_quiz: LearnQuiz  # practice: meaning → pick word, or fill blank

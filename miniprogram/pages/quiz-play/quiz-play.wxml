@@ -12,12 +12,23 @@
   </view>
 
   <view class="loading-state" wx:if="{{loading}}">
-    <view class="loading-state__spinner"></view>
-    <text class="loading-state__text">正在生成题目...</text>
+    <view class="loading-dots">
+      <view class="loading-dots__dot"></view>
+      <view class="loading-dots__dot"></view>
+      <view class="loading-dots__dot"></view>
+    </view>
+    <text class="loading-state__title">{{prepareText}}</text>
+    <view class="loading-progress">
+      <view class="loading-progress__track">
+        <view class="loading-progress__fill" style="width: {{prepareProgress}}%"></view>
+      </view>
+      <text class="loading-progress__value">{{prepareProgress}}%</text>
+    </view>
+    <text class="loading-state__text">{{isTimed ? '闪电测验准备中，马上开始计时' : '正在为你整理合适的练习题'}}</text>
   </view>
 
   <view class="error-state" wx:if="{{loadError && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <text class="error-state__icon">!</text>
     <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
     <view class="quiz-play__error-actions">
       <button class="btn btn-primary btn-block" bindtap="onRetry">重新加载</button>
@@ -35,7 +46,7 @@
         <progress-bar
           current="{{currentIndex + (submitted ? 1 : 0)}}"
           total="{{totalQuestions}}"
-          color="#667eea"
+          color="#007AFF"
           height="12">
         </progress-bar>
       </view>
@@ -48,18 +59,25 @@
 
     <view class="quiz-play__card card animate-fade-in">
       <view class="quiz-play__type-row">
-        <text class="quiz-play__type-badge" wx:if="{{questionType === 'phrase_meaning_choice'}}">短语含义</text>
-        <text class="quiz-play__type-badge" wx:elif="{{questionType === 'word_phonetic_choice'}}">单词音标</text>
-        <text class="quiz-play__type-badge" wx:elif="{{questionType === 'phrase_fill_input'}}">短语填空</text>
-        <text class="quiz-play__type-badge" wx:else>{{questionType}}</text>
+        <text class="quiz-play__type-badge {{questionTypeTone === 'listen' ? 'quiz-play__type-badge--listen' : ''}} {{questionTypeTone === 'reorder' ? 'quiz-play__type-badge--reorder' : ''}}">{{questionTypeLabel}}</text>
       </view>
 
-      <view class="quiz-play__question">
+      <!-- listening_choice: audio play button + prompt -->
+      <view class="quiz-play__question" wx:if="{{interactionType === 'listening_choice'}}">
+        <view class="quiz-play__audio-area">
+          <view class="quiz-play__audio-btn" bindtap="onReplayAudio">
+            <text class="quiz-play__audio-icon">🔊</text>
+          </view>
+          <text class="quiz-play__audio-label">点击重新播放</text>
+        </view>
         <text class="quiz-play__question-text">{{prompt}}</text>
-        <text class="quiz-play__question-hint" wx:if="{{question.hint}}">💡 提示：{{question.hint}}</text>
       </view>
 
-      <view class="quiz-play__options" wx:if="{{interactionType === 'choice'}}">
+      <view class="quiz-play__question" wx:else>
+        <text class="quiz-play__question-text">{{prompt}}</text>
+      </view>
+
+      <view class="quiz-play__options" wx:if="{{interactionType === 'choice' || interactionType === 'listening_choice'}}">
         <view
           class="quiz-play__option {{selectedKey === item.key ? 'quiz-play__option--selected' : ''}} {{submitted && item.isAnswer ? 'quiz-play__option--correct' : ''}} {{submitted && selectedKey === item.key && !isCorrect ? 'quiz-play__option--wrong' : ''}}"
           wx:for="{{options}}"
@@ -81,7 +99,7 @@
         </view>
         <!-- 候选词区 -->
         <view class="quiz-play__candidates">
-          <view 
+          <view
             class="quiz-play__chip {{selectedKey === item.key ? 'quiz-play__chip--selected' : ''}} {{submitted && item.isAnswer ? 'quiz-play__chip--correct' : ''}} {{submitted && selectedKey === item.key && !isCorrect ? 'quiz-play__chip--wrong' : ''}}"
             wx:for="{{options}}"
             wx:key="key"
@@ -92,10 +110,51 @@
         </view>
       </view>
 
+      <!-- reorder: 排序拼句 -->
+      <view class="quiz-play__reorder" wx:if="{{interactionType === 'reorder'}}">
+        <text class="quiz-play__reorder-label">已选答案</text>
+        <view class="quiz-play__reorder-sentence">
+          <view class="quiz-play__reorder-slot" wx:for="{{reorderWords}}" wx:key="index" data-index="{{index}}" bindtap="onRemoveReorderWord">
+            <text class="quiz-play__reorder-word">{{item}}</text>
+            <text class="quiz-play__reorder-remove" wx:if="{{!submitted}}">×</text>
+          </view>
+          <view class="quiz-play__reorder-placeholder" wx:if="{{reorderSelected.length === 0}}">
+            <text>请按顺序点击下方英文单词完成短语拼接</text>
+          </view>
+        </view>
+        <text class="quiz-play__reorder-label">候选词块</text>
+        <view class="quiz-play__candidates">
+          <view
+            class="quiz-play__chip {{item.disabled ? 'quiz-play__chip--disabled' : ''}} {{submitted && isCorrect ? 'quiz-play__chip--correct' : ''}} {{submitted && !isCorrect ? 'quiz-play__chip--wrong' : ''}}"
+            wx:for="{{reorderOptions}}"
+            wx:key="key"
+            data-key="{{item.key}}"
+            bindtap="onSelectOption">
+            <text>{{item.text}}</text>
+          </view>
+        </view>
+        <view class="quiz-play__reorder-actions" wx:if="{{reorderSelected.length > 0 && !submitted}}">
+          <view class="quiz-play__reorder-undo" bindtap="onUndoReorder">
+            <text>↩ 撤销</text>
+          </view>
+        </view>
+      </view>
+
       <view class="quiz-play__feedback" wx:if="{{submitted}}">
         <view class="quiz-play__feedback-banner {{isCorrect ? 'quiz-play__feedback-banner--correct' : 'quiz-play__feedback-banner--wrong'}}">
           <text class="quiz-play__feedback-emoji">{{isCorrect ? '🎉' : '😅'}}</text>
-          <text class="quiz-play__feedback-text">{{isCorrect ? '太棒了！回答正确' : '答错了，正确答案是 ' + correctOptionText}}</text>
+          <text class="quiz-play__feedback-text">{{isCorrect ? '回答正确' : '正确答案：' + correctOptionText}}</text>
+        </view>
+        <view class="quiz-play__meaning-card" wx:if="{{questionType === 'word_phonetic_choice' && question.hint}}">
+          <text class="quiz-play__meaning-label">中文释义</text>
+          <text class="quiz-play__meaning-text">{{question.hint}}</text>
+        </view>
+        <!-- 答错展示解析 -->
+        <view class="quiz-play__explanation-toggle" wx:if="{{!isCorrect && question.explanation}}" bindtap="onToggleExplanation">
+          <text>{{showExplanation ? '收起解析 ▲' : '查看解析 ▼'}}</text>
+        </view>
+        <view class="quiz-play__explanation-content" wx:if="{{!isCorrect && showExplanation && question.explanation}}">
+          <text>{{question.explanation}}</text>
         </view>
       </view>
     </view>
@@ -112,14 +171,14 @@
         class="btn btn-primary btn-block"
         wx:if="{{submitted && currentIndex < totalQuestions - 1}}"
         bindtap="onNextQuestion">
-        下一题 →
+        下一题
       </button>
 
       <button
         class="btn btn-accent btn-block"
         wx:if="{{submitted && currentIndex >= totalQuestions - 1}}"
         bindtap="onNextQuestion">
-        查看结果 📊
+        查看结果
       </button>
     </view>
   </block>

@@ -5,47 +5,58 @@
   <view class="profile-header">
     <view class="avatar-wrap">
       <image class="avatar" src="{{userInfo.avatarUrl || '/static/icons/default-avatar.png'}}" mode="aspectFill" bindtap="onChooseAvatar" />
-      <view class="avatar-badge">✨</view>
+      <view class="avatar-badge"></view>
     </view>
     <view class="user-info">
       <text class="nickname">{{userInfo.nickName || '英语学习者'}}</text>
-      <text class="user-desc">每天进步一点点 🚀</text>
+      <text class="user-desc">每天进步一点点</text>
     </view>
   </view>
 
   <!-- Stats Card -->
   <view class="card stats-card">
     <view class="section-title-row">
-      <text class="section-icon">📊</text>
+      <view class="section-icon section-icon-stats">
+        <view class="section-icon-stats__bar section-icon-stats__bar--low"></view>
+        <view class="section-icon-stats__bar section-icon-stats__bar--mid"></view>
+        <view class="section-icon-stats__bar section-icon-stats__bar--high"></view>
+      </view>
       <text class="section-title">学习统计</text>
     </view>
-    <view class="stats-grid">
-      <view class="stat-item">
-        <text class="stat-icon">🔥</text>
-        <text class="stat-value">{{stats.studyStreak || 0}}</text>
-        <text class="stat-label">连续学习(天)</text>
+    <view class="stats-board">
+      <view class="stat-hero">
+        <view class="stat-icon stat-icon-streak">
+          <view class="stat-icon-streak__mark"></view>
+        </view>
+        <view class="stat-hero__main">
+          <text class="stat-label">连续学习</text>
+          <view class="stat-value-row">
+            <text class="stat-value stat-value-hero">{{stats.activeStreakDays || stats.studyStreak || 0}}</text>
+            <text class="stat-unit">天</text>
+          </view>
+          <text class="stat-subtext">{{stats.streakCompactText || stats.streakSubtext}}</text>
+        </view>
       </view>
-      <view class="stat-item">
-        <text class="stat-icon">📚</text>
-        <text class="stat-value">{{stats.masteredPhrases || 0}}</text>
-        <text class="stat-label">已掌握短语(个)</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-icon">📖</text>
-        <text class="stat-value">{{stats.masteredWords || 0}}</text>
-        <text class="stat-label">已掌握单词(个)</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-icon">🎯</text>
-        <text class="stat-value">{{stats.totalQuiz || 0}}</text>
-        <text class="stat-label">总答题数</text>
-      </view>
-      <view class="stat-item stat-item-wide">
-        <text class="stat-icon">✅</text>
-        <text class="stat-value">{{stats.avgAccuracy || 0}}%</text>
-        <text class="stat-label">平均正确率</text>
-        <view class="accuracy-bar">
-          <view class="accuracy-bar-fill" style="width: {{stats.avgAccuracy || 0}}%"></view>
+      <view class="stat-strip">
+        <view class="stat-mini stat-mini-phrase">
+          <view class="stat-mini__icon stat-mini__icon--phrase"></view>
+          <text class="stat-mini__value">{{stats.masteredPhrases || 0}}</text>
+          <text class="stat-mini__label">短语</text>
+        </view>
+        <view class="stat-mini stat-mini-word">
+          <view class="stat-mini__icon stat-mini__icon--word"></view>
+          <text class="stat-mini__value">{{stats.masteredWords || 0}}</text>
+          <text class="stat-mini__label">单词</text>
+        </view>
+        <view class="stat-mini stat-mini-quiz">
+          <view class="stat-mini__icon stat-mini__icon--quiz"></view>
+          <text class="stat-mini__value">{{stats.totalQuiz || 0}}</text>
+          <text class="stat-mini__label">答题</text>
+        </view>
+        <view class="stat-mini stat-mini-accuracy">
+          <view class="stat-mini__icon stat-mini__icon--accuracy"></view>
+          <text class="stat-mini__value">{{stats.avgAccuracy || 0}}%</text>
+          <text class="stat-mini__label">正确率</text>
         </view>
       </view>
     </view>
@@ -54,7 +65,7 @@
   <!-- Achievement Badges -->
   <view class="card achievements-card">
     <view class="section-title-row">
-      <text class="section-icon">🏆</text>
+      <text class="section-icon">成就</text>
       <text class="section-title">成就徽章</text>
       <text class="achievement-count">{{achievements.length}}/17</text>
     </view>
@@ -80,7 +91,6 @@
   <view class="card settings-preview" bindtap="goToSettings">
     <view class="settings-preview-row">
       <view class="flex items-center">
-        <text class="settings-icon">⚙️</text>
         <text class="settings-label">设置</text>
       </view>
       <text class="arrow-icon">›</text>
@@ -90,7 +100,7 @@
   <!-- Version Info -->
   <view class="version-info">
     <text class="version-text">EasySpeak v1.0.0</text>
-    <text class="version-sub">Made with ❤️ for English Learners</text>
+    <text class="version-sub">Made for English Learners</text>
   </view>
 
 </view>

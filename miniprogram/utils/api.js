@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
   // 本地开发: http://localhost:8000/api/v1
   // 服务器部署: https://你的域名/api/v1
   baseUrl: 'https://easyspeak.amazingzz.xyz/api/v1',
-  timeout: 15000,
+  timeout: 30000,
   contentType: 'application/json'
 }
 

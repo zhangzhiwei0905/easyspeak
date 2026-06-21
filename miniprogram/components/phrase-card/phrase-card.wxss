@@ -3,14 +3,15 @@
   position: relative;
   margin: 0 0 24rpx 0;
   border-radius: 16rpx;
-  background: #ffffff;
-  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.06);
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
 }
 
 .phrase-card:active {
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card-hover);
+  transform: scale(0.985);
 }
 
 /* Left gradient border */
@@ -23,17 +24,16 @@
   z-index: 1;
 }
 
-/* Morning: purple-blue gradient */
+/* Morning: blue gradient */
 .phrase-card--morning .phrase-card__border {
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary-gradient);
 }
 
-/* Evening: dark-blue */
+/* Evening: dark theme */
 .phrase-card--evening .phrase-card__border {
-  background: linear-gradient(180deg, #1a1a2e 0%, #0f3460 100%);
+  background: linear-gradient(180deg, var(--color-text-primary) 0%, var(--color-primary-dark) 100%);
 }
 
-/* Evening dark card style */
 .phrase-card--evening {
   background: #161b22;
   box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.3);
@@ -93,7 +93,7 @@
 .phrase-card__phrase {
   font-size: 36rpx;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--color-text-primary);
   line-height: 1.5;
   flex: 1;
   padding-right: 16rpx;
@@ -111,7 +111,7 @@
 
 .expand-arrow {
   font-size: 22rpx;
-  color: #999;
+  color: var(--color-text-hint);
   transition: transform 0.3s ease;
   display: inline-block;
 }
@@ -128,13 +128,13 @@
 .phrase-card__meaning {
   font-size: 30rpx;
   font-weight: 500;
-  color: #333;
+  color: var(--color-text-primary);
   margin-bottom: 8rpx;
 }
 
 .phrase-card__explanation {
   font-size: 28rpx;
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1.6;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -154,8 +154,8 @@
 .phrase-card__source-tag {
   display: inline-block;
   font-size: 22rpx;
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
+  color: var(--color-primary);
+  background: rgba(0, 122, 255, 0.1);
   padding: 6rpx 16rpx;
   border-radius: 8rpx;
   line-height: 1.4;
@@ -180,7 +180,7 @@
 
 .phrase-card__divider {
   height: 1rpx;
-  background: rgba(102, 126, 234, 0.15);
+  background: rgba(0, 122, 255, 0.15);
   margin-bottom: 20rpx;
 }
 
@@ -190,12 +190,12 @@
   margin-bottom: 20rpx;
   padding: 16rpx;
   border-radius: 12rpx;
-  background: #f8f9fc;
+  background: var(--color-bg);
   transition: background 0.2s;
 }
 
 .phrase-card__example:active {
-  background: #eef0f7;
+  background: var(--color-border);
 }
 
 .phrase-card--evening .phrase-card__example {
@@ -215,8 +215,8 @@
   width: 40rpx;
   height: 40rpx;
   border-radius: 50%;
-  background: rgba(102, 126, 234, 0.12);
-  color: #667eea;
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--color-primary);
   font-size: 22rpx;
   font-weight: 600;
   display: flex;
@@ -234,14 +234,14 @@
 
 .phrase-card__example-en {
   font-size: 26rpx;
-  color: #333;
+  color: var(--color-text-primary);
   line-height: 1.6;
   font-style: italic;
 }
 
 .phrase-card__example-cn {
   font-size: 24rpx;
-  color: #888;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   margin-top: 4rpx;
 }
@@ -252,7 +252,7 @@
   align-items: center;
   margin-top: 20rpx;
   padding-top: 16rpx;
-  border-top: 1rpx dashed rgba(102, 126, 234, 0.2);
+  border-top: 1rpx dashed rgba(0, 122, 255, 0.2);
 }
 
 .phrase-card__source-icon {
@@ -262,5 +262,5 @@
 
 .phrase-card__source-text {
   font-size: 22rpx;
-  color: #999;
+  color: var(--color-text-hint);
 }

@@ -23,7 +23,7 @@
 
   <!-- ========== Error State ========== -->
   <view class="error-state" wx:if="{{error && !loading}}">
-    <text class="error-state__icon">😞</text>
+    <text class="error-state__icon">!</text>
     <text class="error-state__text">{{errorMsg || '加载失败，请重试'}}</text>
     <button class="btn btn-primary btn-sm mt-lg" bindtap="onRetry">重新加载</button>
   </view>
@@ -34,7 +34,7 @@
  <!-- 1. Theme Header with Gradient -->
  <view class="detail-header">
  <view class="detail-header__top">
- <text class="detail-header__icon">📖</text>
+ <text class="detail-header__icon"></text>
  <view class="detail-header__info">
  <text class="detail-header__slot">{{categoryZh || '每日推送'}}</text>
  <text class="detail-header__date">{{dateDisplay}} {{weekday}}</text>
@@ -60,7 +60,7 @@
     <!-- 2. Introduction -->
     <view class="detail-section animate-fade-in" wx:if="{{introduction}}">
       <view class="section-label">
-        <text class="section-label__icon">📖</text>
+        <text class="section-label__icon"></text>
         <text class="section-label__text">主题介绍</text>
       </view>
       <view class="intro-card card">
@@ -71,7 +71,7 @@
     <!-- 3. Practice Tips -->
     <view class="detail-section animate-fade-in" wx:if="{{practiceTips}}" style="animation-delay: 0.05s">
       <view class="section-label">
-        <text class="section-label__icon">💡</text>
+        <text class="section-label__icon"></text>
         <text class="section-label__text">练习建议</text>
       </view>
       <view class="tips-card card">
@@ -84,11 +84,11 @@
       <view class="tab-bar">
         <view class="tab-bar__item {{activeTab === 'phrases' ? 'tab-bar__item--active' : ''}}"
               data-tab="phrases" bindtap="onTabChange">
-          <text class="tab-bar__text">📝 短语 ({{phrases.length}})</text>
+          <text class="tab-bar__text"> 短语 ({{phrases.length}})</text>
         </view>
         <view class="tab-bar__item {{activeTab === 'words' ? 'tab-bar__item--active' : ''}}"
               data-tab="words" bindtap="onTabChange">
-          <text class="tab-bar__text">📚 单词 ({{words.length}})</text>
+          <text class="tab-bar__text"> 单词 ({{words.length}})</text>
         </view>
       </view>
 
@@ -181,22 +181,22 @@
       <view class="learn-entry-btn learn-entry-btn--phrase {{phraseStudied ? 'learn-entry-btn--done' : ''}}"
             bindtap="onStartLearnPhrase">
         <block wx:if="{{phraseStudied}}">
-          <text class="learn-entry-btn__icon">✅</text>
+          <text class="learn-entry-btn__icon"></text>
           <text class="learn-entry-btn__text">短语已学</text>
         </block>
         <block wx:else>
-          <text class="learn-entry-btn__icon">📝</text>
+          <text class="learn-entry-btn__icon"></text>
           <text class="learn-entry-btn__text">学短语</text>
         </block>
       </view>
       <view class="learn-entry-btn learn-entry-btn--word {{wordStudied ? 'learn-entry-btn--done' : ''}}"
             bindtap="onStartLearnWord">
         <block wx:if="{{wordStudied}}">
-          <text class="learn-entry-btn__icon">✅</text>
+          <text class="learn-entry-btn__icon"></text>
           <text class="learn-entry-btn__text">单词已学</text>
         </block>
         <block wx:else>
-          <text class="learn-entry-btn__icon">📚</text>
+          <text class="learn-entry-btn__icon"></text>
           <text class="learn-entry-btn__text">学单词</text>
         </block>
       </view>

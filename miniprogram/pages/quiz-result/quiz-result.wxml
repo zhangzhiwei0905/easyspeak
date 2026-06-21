@@ -65,8 +65,10 @@
     <view class="type-stats__grid">
       <view class="type-stats__item" wx:for="{{typeStats}}" wx:key="type">
         <text class="type-stats__item-label">{{item.label}}</text>
-        <text class="type-stats__item-score">{{item.correct}}/{{item.total}}</text>
-        <text class="type-stats__item-accuracy {{item.accuracy >= 80 ? 'type-stats__item-accuracy--good' : item.accuracy >= 50 ? 'type-stats__item-accuracy--mid' : 'type-stats__item-accuracy--bad'}}">{{item.accuracy}}%</text>
+        <view class="type-stats__item-metrics">
+          <text class="type-stats__item-score">{{item.correct}}/{{item.total}}</text>
+          <text class="type-stats__item-accuracy {{item.accuracy >= 80 ? 'type-stats__item-accuracy--good' : item.accuracy >= 50 ? 'type-stats__item-accuracy--mid' : 'type-stats__item-accuracy--bad'}}">{{item.accuracy}}%</text>
+        </view>
       </view>
     </view>
   </view>
@@ -99,11 +101,14 @@
     <view class="review-list">
       <view
         class="review-item {{item.isCorrect ? 'review-item--correct' : 'review-item--wrong'}}"
-        wx:for="{{showAll ? filteredResults : filteredResults.slice(0, visibleCount)}}"
+        wx:for="{{displayedResults}}"
         wx:key="index">
         <!-- Question index and status -->
         <view class="review-item__header">
-          <text class="review-item__index">第 {{index + 1}} 题</text>
+          <view class="review-item__header-main">
+            <text class="review-item__index">第 {{index + 1}} 题</text>
+            <text class="review-item__type">{{item.typeLabel}}</text>
+          </view>
           <view class="review-item__status">
             <text wx:if="{{item.isCorrect}}" class="review-item__status--correct">正确</text>
             <text wx:else class="review-item__status--wrong">错误</text>
@@ -112,6 +117,12 @@
 
         <!-- Question text -->
         <text class="review-item__question">{{item.question}}</text>
+
+        <view class="review-item__answers review-item__answers--compact" wx:if="{{item.isCorrect}}">
+          <text class="review-item__correct-answer">
+            你的答案：<text class="review-item__correct-text">{{item.userAnswer}}</text>
+          </text>
+        </view>
 
         <!-- Options (compact display) -->
         <view class="review-item__options" wx:if="{{item.options && item.options.length > 0}}">
@@ -138,10 +149,14 @@
           </text>
         </view>
 
-        <!-- Knowledge point hint -->
-        <view class="review-item__hint" wx:if="{{!item.isCorrect && item.hint}}">
-          <text class="review-item__hint-icon">💡</text>
-          <text class="review-item__hint-text">{{item.hint}}</text>
+        <!-- Expandable explanation for wrong answers -->
+        <view class="review-item__detail" wx:if="{{!item.isCorrect && item.explanation}}">
+          <view class="review-item__detail-toggle" data-index="{{index}}" bindtap="onToggleDetail">
+            <text>{{expandedIndex === index ? '收起详解 ▲' : '查看详解 ▼'}}</text>
+          </view>
+          <view class="review-item__detail-content" wx:if="{{expandedIndex === index}}">
+            <text>{{item.explanation}}</text>
+          </view>
         </view>
       </view>
     </view>

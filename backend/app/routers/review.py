@@ -1,6 +1,7 @@
 """Review system endpoints."""
 
 from datetime import date, datetime, time, timedelta, timezone
+import random
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -27,14 +28,135 @@ from app.schemas.user import (
     ReviewItem,
     ReviewMemorySummary,
     ReviewOverviewResponse,
+    TodayActivity,
 )
 from app.utils.spaced_repetition import calculate_next_review_at
 from app.utils.phrase_meaning import get_phrase_short_meaning
 from app.routers.learn import _get_distractors, _make_quiz
+from app.routers import quiz as quiz_router
 
 router = APIRouter()
 
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
+
+def _as_utc_datetime(value: datetime) -> datetime:
+    """Treat naive stored datetimes as UTC, then normalize all values to UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _shanghai_date(value: datetime) -> date:
+    return _as_utc_datetime(value).astimezone(SHANGHAI_TZ).date()
+
+
+def _shanghai_day_range(day: date) -> tuple[datetime, datetime]:
+    start = datetime.combine(day, time.min, tzinfo=SHANGHAI_TZ)
+    end = start + timedelta(days=1)
+    return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+
+
+def _calculate_active_streak_days(active_dates: set[date], now: datetime) -> int:
+    today = now.astimezone(SHANGHAI_TZ).date()
+    yesterday = today - timedelta(days=1)
+
+    if today in active_dates:
+        cursor = today
+    elif yesterday in active_dates:
+        cursor = yesterday
+    else:
+        return 0
+
+    streak = 0
+    while cursor in active_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+    return streak
+
+
+def _latest_activity_sources(
+    latest_date: Optional[date],
+    source_dates: dict[str, set[date]],
+) -> list[str]:
+    if not latest_date:
+        return []
+    return [source for source in ("learn", "review", "quiz") if latest_date in source_dates[source]]
+
+
+def _activity_summary(
+    openid: str,
+    db: Session,
+    now: datetime,
+) -> tuple[int, Optional[date], TodayActivity, list[str]]:
+    learn_times = [
+        row[0] for row in
+        db.query(LearnSession.created_at)
+        .filter(LearnSession.openid == openid, LearnSession.created_at.isnot(None))
+        .all()
+    ]
+    review_times = [
+        row[0] for row in
+        db.query(ReviewLog.reviewed_at)
+        .filter(ReviewLog.openid == openid, ReviewLog.reviewed_at.isnot(None))
+        .all()
+    ]
+    quiz_times = [
+        row[0] for row in
+        db.query(QuizRecord.answered_at)
+        .filter(QuizRecord.openid == openid, QuizRecord.answered_at.isnot(None))
+        .all()
+    ]
+
+    source_dates = {
+        "learn": {_shanghai_date(value) for value in learn_times},
+        "review": {_shanghai_date(value) for value in review_times},
+        "quiz": {_shanghai_date(value) for value in quiz_times},
+    }
+    active_dates = set().union(*source_dates.values())
+    latest_date = max(active_dates) if active_dates else None
+
+    today = now.astimezone(SHANGHAI_TZ).date()
+    today_start, today_end = _shanghai_day_range(today)
+    today_activity = TodayActivity(
+        learn_sessions=(
+            db.query(func.count(LearnSession.id))
+            .filter(
+                LearnSession.openid == openid,
+                LearnSession.created_at >= today_start,
+                LearnSession.created_at < today_end,
+            )
+            .scalar()
+            or 0
+        ),
+        review_items=(
+            db.query(func.count(ReviewLog.id))
+            .filter(
+                ReviewLog.openid == openid,
+                ReviewLog.reviewed_at >= today_start,
+                ReviewLog.reviewed_at < today_end,
+            )
+            .scalar()
+            or 0
+        ),
+        quiz_answers=(
+            db.query(func.count(QuizRecord.id))
+            .filter(
+                QuizRecord.openid == openid,
+                QuizRecord.answered_at >= today_start,
+                QuizRecord.answered_at < today_end,
+            )
+            .scalar()
+            or 0
+        ),
+    )
+
+    return (
+        _calculate_active_streak_days(active_dates, now),
+        latest_date,
+        today_activity,
+        _latest_activity_sources(latest_date, source_dates),
+    )
 
 
 def _today_review_range(now: datetime) -> tuple[datetime, datetime]:
@@ -88,6 +210,143 @@ def _keyboard_letters(answer: str) -> list[str]:
     import random
     random.shuffle(pool)
     return pool[:max(12, len(letters))]
+
+
+PHRASE_REVIEW_QUESTION_TYPES = {
+    "phrase_meaning_choice",
+    "meaning_to_phrase_choice",
+    "phrase_reorder",
+    "phrase_fill_input",
+}
+WORD_REVIEW_QUESTION_TYPES = {
+    "word_meaning_choice",
+    "meaning_to_word_choice",
+    "word_phonetic_choice",
+    "word_context_choice",
+}
+
+
+def _mastery_level(mastery: Optional[int]) -> int:
+    if mastery is None:
+        return 0
+    return max(0, min(5, mastery))
+
+
+def _question_count_for_mastery(mastery: Optional[int]) -> int:
+    level = _mastery_level(mastery)
+    if level <= 1:
+        return 3
+    if level <= 3:
+        return 2
+    return 1
+
+
+def _review_question_groups(item_type: str, mastery: Optional[int]) -> list[list[str]]:
+    level = _mastery_level(mastery)
+    if item_type == "phrase":
+        if level <= 1:
+            return [
+                ["meaning_to_phrase_choice", "phrase_meaning_choice"],
+                ["phrase_fill_input"],
+                ["phrase_reorder"],
+            ]
+        if level <= 3:
+            return [
+                ["phrase_meaning_choice", "meaning_to_phrase_choice"],
+                ["phrase_fill_input", "phrase_reorder"],
+            ]
+        return [
+            ["phrase_reorder", "phrase_fill_input"],
+            ["meaning_to_phrase_choice", "phrase_meaning_choice"],
+        ]
+    if level <= 1:
+        return [
+            ["meaning_to_word_choice", "word_meaning_choice"],
+            ["word_phonetic_choice"],
+            ["word_context_choice"],
+        ]
+    if level <= 3:
+        return [
+            ["word_meaning_choice", "meaning_to_word_choice"],
+            ["word_context_choice", "word_phonetic_choice"],
+        ]
+    return [
+        ["word_context_choice", "word_phonetic_choice"],
+        ["meaning_to_word_choice", "word_meaning_choice"],
+    ]
+
+
+def _build_review_question(
+    question_type: str,
+    phrase: Optional[Phrase],
+    word: Optional[Word],
+    phrase_pool: list[Phrase],
+    word_pool: list[Word],
+):
+    if phrase:
+        if question_type == "phrase_meaning_choice":
+            return quiz_router._build_phrase_meaning_question(phrase, phrase_pool)
+        if question_type == "meaning_to_phrase_choice":
+            return quiz_router._build_meaning_to_phrase_question(phrase, phrase_pool)
+        if question_type == "phrase_reorder":
+            return quiz_router._build_phrase_reorder_question(phrase)
+        if question_type == "phrase_fill_input":
+            return quiz_router._build_phrase_fill_input_question(phrase, phrase_pool)
+    elif word:
+        if question_type == "word_meaning_choice":
+            return quiz_router._build_word_meaning_question(word, word_pool)
+        if question_type == "meaning_to_word_choice":
+            return quiz_router._build_meaning_to_word_question(word, word_pool)
+        if question_type == "word_phonetic_choice" and word.phonetic:
+            return quiz_router._build_word_phonetic_question(word, word_pool)
+        if question_type == "word_context_choice":
+            return quiz_router._build_word_context_question(word, word_pool)
+    return None
+
+
+def _review_fallback_types(item_type: str, used_types: set[str]) -> list[str]:
+    question_types = PHRASE_REVIEW_QUESTION_TYPES if item_type == "phrase" else WORD_REVIEW_QUESTION_TYPES
+    remaining = [question_type for question_type in question_types if question_type not in used_types]
+    random.shuffle(remaining)
+    return remaining
+
+
+def _build_targeted_review_quizzes(
+    record: UserProgress,
+    phrase: Optional[Phrase],
+    word: Optional[Word],
+    phrase_pool: list[Phrase],
+    word_pool: list[Word],
+) -> list[dict]:
+    item_type = "phrase" if phrase else "word"
+    target_count = _question_count_for_mastery(record.mastery)
+    questions = []
+    used_types = set()
+
+    for group in _review_question_groups(item_type, record.mastery):
+        candidates = group[:]
+        random.shuffle(candidates)
+        for question_type in candidates:
+            if question_type in used_types:
+                continue
+            question = _build_review_question(question_type, phrase, word, phrase_pool, word_pool)
+            payload = _quiz_to_dict(question)
+            if payload:
+                questions.append(payload)
+                used_types.add(question_type)
+                break
+        if len(questions) >= target_count:
+            break
+
+    for question_type in _review_fallback_types(item_type, used_types):
+        if len(questions) >= target_count:
+            break
+        question = _build_review_question(question_type, phrase, word, phrase_pool, word_pool)
+        payload = _quiz_to_dict(question)
+        if payload:
+            questions.append(payload)
+            used_types.add(question_type)
+    return questions
 
 
 def _build_phrase_review_quizzes(phrase: Phrase, all_phrases: list[Phrase]):
@@ -188,6 +447,7 @@ def _build_review_item(
             examples=examples,
             source=phrase.source,
             next_review_at=record.next_review,
+            review_quizzes=_build_targeted_review_quizzes(record, phrase, None, phrase_pool, word_pool),
             stage2_quiz=stage2,
             stage3_quiz=stage3,
             final_quiz=final_quiz,
@@ -204,6 +464,7 @@ def _build_review_item(
             examples=[word.example] if word.example else [],
             part_of_speech=word.part_of_speech,
             next_review_at=record.next_review,
+            review_quizzes=_build_targeted_review_quizzes(record, None, word, phrase_pool, word_pool),
             stage2_quiz=stage2,
             stage3_quiz=stage3,
             final_quiz=final_quiz,
@@ -636,6 +897,11 @@ async def get_progress_summary(
         or 0
     )
     avg_accuracy = round((correct_count / total_quiz) * 100, 1) if total_quiz > 0 else 0.0
+    active_streak_days, last_active_date, today_activity, streak_sources = _activity_summary(
+        user.openid,
+        db,
+        datetime.now(timezone.utc),
+    )
 
     return ProgressSummary(
         study_streak=user.study_streak or 0,
@@ -646,6 +912,10 @@ async def get_progress_summary(
         mastered_words=mastered_words,
         total_quiz=total_quiz,
         avg_accuracy=avg_accuracy,
+        active_streak_days=active_streak_days,
+        last_active_date=last_active_date,
+        today_activity=today_activity,
+        streak_sources=streak_sources,
     )
 
 

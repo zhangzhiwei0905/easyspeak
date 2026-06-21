@@ -17,7 +17,7 @@
           <text class="setting-desc">{{settings.remindEnabled ? settings.remindTime : '已关闭'}}</text>
         </view>
       </view>
-      <switch checked="{{settings.remindEnabled}}" color="#667eea" bindchange="onRemindToggle" />
+      <switch checked="{{settings.remindEnabled}}" color="#007AFF" bindchange="onRemindToggle" />
     </view>
 
     <!-- Morning Time Picker -->
@@ -65,7 +65,7 @@
           <text class="setting-desc">{{settings.emailPush ? '每日学习内容推送至邮箱' : '未开启邮件推送'}}</text>
         </view>
       </view>
-      <switch checked="{{settings.emailPush}}" color="#667eea" bindchange="onEmailPushToggle" />
+      <switch checked="{{settings.emailPush}}" color="#007AFF" bindchange="onEmailPushToggle" />
     </view>
   </view>
 
@@ -85,7 +85,7 @@
           <text class="setting-desc">{{settings.darkMode ? '夜间主题已开启' : '跟随系统默认'}}</text>
         </view>
       </view>
-      <switch checked="{{settings.darkMode}}" color="#667eea" bindchange="onDarkModeToggle" />
+      <switch checked="{{settings.darkMode}}" color="#007AFF" bindchange="onDarkModeToggle" />
     </view>
   </view>
 
@@ -175,7 +175,7 @@
 
   <view class="footer-info safe-bottom">
     <text class="footer-text">EasySpeak v{{version}}</text>
-    <text class="footer-sub">Made with ❤️ for English Learners</text>
+    <text class="footer-sub">Made for English Learners</text>
   </view>
 
 </view>

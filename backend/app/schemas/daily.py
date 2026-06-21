@@ -1,5 +1,5 @@
 """Pydantic schemas for daily content."""
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from datetime import date
 
@@ -55,6 +55,8 @@ class WordBase(BaseModel):
     part_of_speech: Optional[str] = None
     meaning: Optional[str] = None
     example: Optional[str] = None
+    usage_note: Optional[str] = None
+    context_meanings: list[dict[str, str]] = Field(default_factory=list)
     sort_order: int = 0
 
 
@@ -63,6 +65,36 @@ class WordOut(WordBase):
     content_id: int
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_context_meanings(cls, values):
+        if not isinstance(values, dict):
+            data = {
+                "word": getattr(values, "word", ""),
+                "phonetic": getattr(values, "phonetic", None),
+                "part_of_speech": getattr(values, "part_of_speech", None),
+                "meaning": getattr(values, "meaning", None),
+                "example": getattr(values, "example", None),
+                "usage_note": getattr(values, "usage_note", None),
+                "context_meanings": getattr(values, "context_meanings", None),
+                "sort_order": getattr(values, "sort_order", 0),
+                "id": getattr(values, "id", None),
+                "content_id": getattr(values, "content_id", None),
+            }
+            values = data
+
+        raw = values.get("context_meanings")
+        if isinstance(raw, str):
+            try:
+                import json
+                parsed = json.loads(raw)
+                values["context_meanings"] = parsed if isinstance(parsed, list) else []
+            except (TypeError, ValueError):
+                values["context_meanings"] = []
+        elif raw is None:
+            values["context_meanings"] = []
+        return values
 
 
 # --- Daily Content ---
@@ -113,6 +145,8 @@ class WordImport(BaseModel):
     part_of_speech: Optional[str] = None
     meaning: Optional[str] = None
     example: Optional[str] = None
+    usage_note: Optional[str] = None
+    context_meanings: list[dict[str, str]] = Field(default_factory=list)
 
 
 class ContentImport(BaseModel):
@@ -146,10 +180,17 @@ class ReviewInfo(BaseModel):
     due_count: int = 0
 
 
+class TomorrowInfo(BaseModel):
+    theme_zh: str
+    theme_en: str = ""
+    category_zh: str = ""
+
+
 class TodayResponse(BaseModel):
     content: Optional[DailyContentOut] = None
     progress: ProgressInfo = ProgressInfo()
     review: ReviewInfo = ReviewInfo()
+    tomorrow: Optional[TomorrowInfo] = None
 
 
 # --- Paginated response ---

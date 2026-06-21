@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EasySpeak Project Intro</title>
+    <style>
+      :root {
+        --canvas: #f6f4ff;
+        --ink: #1a1a2e;
+        --muted: #626071;
+        --card: #fffefe;
+        --primary: #667eea;
+        --primary-dark: #764ba2;
+        --accent: #e8590c;
+        --success: #52c41a;
+        --line: #e8e5f7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--canvas);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+      }
+
+      #easyspeak-intro {
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 14% 16%, rgba(102, 126, 234, 0.2), transparent 28%),
+          radial-gradient(circle at 86% 20%, rgba(232, 89, 12, 0.12), transparent 24%),
+          linear-gradient(135deg, #fbfaff 0%, #f4f1ff 54%, #eef4ff 100%);
+      }
+
+      .grain {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 0.23;
+        background-image:
+          linear-gradient(rgba(26, 26, 46, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(26, 26, 46, 0.035) 1px, transparent 1px);
+        background-size: 44px 44px;
+      }
+
+      .orb {
+        position: absolute;
+        z-index: 2;
+        border-radius: 999px;
+        filter: blur(2px);
+        opacity: 0.52;
+      }
+
+      .orb-a {
+        width: 360px;
+        height: 360px;
+        left: -80px;
+        top: 650px;
+        background: rgba(102, 126, 234, 0.15);
+      }
+
+      .orb-b {
+        width: 280px;
+        height: 280px;
+        right: 90px;
+        top: 80px;
+        background: rgba(232, 89, 12, 0.1);
+      }
+
+      .ghost {
+        position: absolute;
+        z-index: 2;
+        color: rgba(102, 126, 234, 0.075);
+        font-size: 154px;
+        font-weight: 800;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      .ghost-a {
+        left: 96px;
+        bottom: 18px;
+      }
+
+      .ghost-b {
+        right: -24px;
+        top: 188px;
+        transform: rotate(90deg);
+        transform-origin: center;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        width: 100%;
+        height: 100%;
+        padding: 86px 118px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 74px;
+      }
+
+      .scene-title {
+        font-size: 82px;
+        line-height: 1.04;
+        font-weight: 800;
+        letter-spacing: 0;
+        margin: 0;
+      }
+
+      .scene-subtitle {
+        margin: 24px 0 0;
+        color: var(--muted);
+        font-size: 28px;
+        line-height: 1.45;
+        max-width: 720px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--primary-dark);
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 22px;
+      }
+
+      .eyebrow-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      .phone {
+        width: 406px;
+        height: 806px;
+        padding: 22px;
+        border-radius: 56px;
+        background: #171727;
+        box-shadow: 0 32px 70px rgba(26, 26, 46, 0.2);
+        flex: 0 0 auto;
+      }
+
+      .phone-screen {
+        height: 100%;
+        overflow: hidden;
+        border-radius: 40px;
+        background: #f0f2f5;
+        position: relative;
+      }
+
+      .status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 46px;
+        padding: 0 24px;
+        font-size: 15px;
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .screen-body {
+        padding: 16px 22px 24px;
+      }
+
+      .push-card {
+        border-radius: 24px;
+        padding: 26px;
+        color: white;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        box-shadow: 0 18px 36px rgba(102, 126, 234, 0.25);
+      }
+
+      .push-theme {
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1.16;
+      }
+
+      .push-en {
+        margin-top: 6px;
+        opacity: 0.78;
+        font-size: 16px;
+      }
+
+      .pill-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .pill {
+        padding: 9px 13px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .mini-section {
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 22px;
+        background: white;
+        box-shadow: 0 10px 24px rgba(26, 26, 46, 0.07);
+      }
+
+      .mini-label {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+
+      .phrase {
+        font-size: 25px;
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1.22;
+      }
+
+      .meaning {
+        margin-top: 8px;
+        font-size: 15px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 78px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        background: rgba(255, 255, 255, 0.94);
+        border-top: 1px solid var(--line);
+      }
+
+      .tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 4px;
+        color: #9390a2;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .tab.active {
+        color: var(--primary);
+      }
+
+      .tab-icon {
+        font-size: 20px;
+      }
+
+      .steps {
+        width: 710px;
+        display: grid;
+        gap: 20px;
+      }
+
+      .step-card {
+        display: grid;
+        grid-template-columns: 86px 1fr 140px;
+        align-items: center;
+        gap: 24px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 254, 254, 0.86);
+        box-shadow: 0 16px 42px rgba(26, 26, 46, 0.07);
+      }
+
+      .step-num {
+        width: 66px;
+        height: 66px;
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 28px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      }
+
+      .step-title {
+        font-size: 29px;
+        font-weight: 800;
+      }
+
+      .step-copy {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.38;
+      }
+
+      .progress-rail {
+        height: 12px;
+        border-radius: 999px;
+        background: #ece9fb;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--success);
+      }
+
+      .quiz-panel {
+        width: 720px;
+        padding: 34px;
+        border-radius: 34px;
+        background: rgba(255, 254, 254, 0.92);
+        box-shadow: 0 24px 58px rgba(26, 26, 46, 0.11);
+        border: 1px solid var(--line);
+      }
+
+      .question {
+        font-size: 34px;
+        line-height: 1.25;
+        font-weight: 800;
+        margin-bottom: 26px;
+      }
+
+      .option {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-height: 70px;
+        padding: 15px 18px;
+        border-radius: 20px;
+        border: 2px solid #ebe8f8;
+        background: #fbfaff;
+        margin-top: 14px;
+        font-size: 21px;
+        font-weight: 700;
+      }
+
+      .option-key {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        color: var(--primary);
+        background: #ece9ff;
+        flex: 0 0 auto;
+      }
+
+      .option.correct {
+        border-color: rgba(82, 196, 26, 0.48);
+        background: rgba(82, 196, 26, 0.1);
+      }
+
+      .analytics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+        margin-top: 30px;
+      }
+
+      .metric {
+        padding: 20px 18px;
+        border-radius: 22px;
+        background: #fbfaff;
+        border: 1px solid var(--line);
+      }
+
+      .metric-value {
+        font-size: 38px;
+        font-weight: 800;
+        color: var(--primary-dark);
+      }
+
+      .metric-label {
+        margin-top: 8px;
+        font-size: 15px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .architecture {
+        width: 800px;
+        height: 570px;
+        position: relative;
+      }
+
+      .node {
+        position: absolute;
+        width: 250px;
+        padding: 24px;
+        border-radius: 28px;
+        border: 1px solid var(--line);
+        background: rgba(255, 254, 254, 0.92);
+        box-shadow: 0 18px 44px rgba(26, 26, 46, 0.09);
+      }
+
+      .node-title {
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .node-copy {
+        margin-top: 9px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.36;
+      }
+
+      .node.frontend {
+        left: 0;
+        top: 70px;
+      }
+
+      .node.backend {
+        right: 0;
+        top: 70px;
+      }
+
+      .node.ai {
+        left: 275px;
+        bottom: 0;
+      }
+
+      .connector {
+        position: absolute;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.25), rgba(102, 126, 234, 0.75));
+        transform-origin: left center;
+      }
+
+      .connector-a {
+        left: 250px;
+        top: 186px;
+        width: 300px;
+      }
+
+      .connector-b {
+        left: 194px;
+        top: 302px;
+        width: 260px;
+        transform: rotate(42deg);
+      }
+
+      .connector-c {
+        left: 495px;
+        top: 304px;
+        width: 245px;
+        transform: rotate(138deg);
+      }
+
+      .final-stack {
+        width: 700px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .final-line {
+        padding: 22px 26px;
+        border-radius: 24px;
+        background: rgba(255, 254, 254, 0.92);
+        border: 1px solid var(--line);
+        font-size: 24px;
+        font-weight: 800;
+        box-shadow: 0 14px 34px rgba(26, 26, 46, 0.07);
+      }
+
+      .brand-mark {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 30px;
+      }
+
+      .logo {
+        width: 76px;
+        height: 76px;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 40px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        box-shadow: 0 16px 32px rgba(102, 126, 234, 0.28);
+      }
+
+      .brand-name {
+        font-size: 36px;
+        font-weight: 800;
+      }
+
+      .caption {
+        position: absolute;
+        left: 118px;
+        bottom: 62px;
+        z-index: 20;
+        max-width: 1080px;
+        padding: 18px 24px;
+        border-radius: 20px;
+        color: #fff;
+        background: rgba(26, 26, 46, 0.74);
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.35;
+        box-shadow: 0 20px 44px rgba(26, 26, 46, 0.18);
+      }
+
+      .caption strong {
+        color: #ffd5bd;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="easyspeak-intro"
+      data-composition-id="easyspeak-intro"
+      data-start="0"
+      data-duration="35"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div class="grain" data-layout-ignore></div>
+      <div class="orb orb-a" data-layout-ignore></div>
+      <div class="orb orb-b" data-layout-ignore></div>
+      <div class="ghost ghost-a" data-layout-ignore>Speak daily</div>
+      <div class="ghost ghost-b" data-layout-ignore>Review</div>
+
+      <section id="scene-1" class="scene">
+        <div class="copy-block">
+          <div class="brand-mark">
+            <div class="logo">E</div>
+            <div class="brand-name">EasySpeak</div>
+          </div>
+          <div class="eyebrow"><span class="eyebrow-dot"></span>WeChat Mini Program · English oral practice</div>
+          <h1 class="scene-title">把每天的英语输入，变成真的会说。</h1>
+          <p class="scene-subtitle">EasySpeak 围绕日常推送内容，把短语、单词、复习和测验串成一个轻量学习闭环。</p>
+        </div>
+        <div class="phone phone-home">
+          <div class="phone-screen">
+            <div class="status"><span>9:41</span><span>EasySpeak</span></div>
+            <div class="screen-body">
+              <div class="push-card">
+                <div class="push-theme">咖啡店点单</div>
+                <div class="push-en">Ordering coffee with natural phrases</div>
+                <div class="pill-row">
+                  <div class="pill">6 个短语</div>
+                  <div class="pill">8 个单词</div>
+                </div>
+              </div>
+              <div class="mini-section">
+                <div class="mini-label">今日短语速览</div>
+                <div class="phrase">Could I get this to go?</div>
+                <div class="meaning">可以帮我打包带走吗？</div>
+              </div>
+              <div class="mini-section">
+                <div class="mini-label">今日学习进度</div>
+                <div class="progress-rail"><div class="progress-fill home-fill"></div></div>
+              </div>
+            </div>
+            <div class="tabbar">
+              <div class="tab active"><span class="tab-icon">⌂</span><span>首页</span></div>
+              <div class="tab"><span class="tab-icon">▦</span><span>库</span></div>
+              <div class="tab"><span class="tab-icon">↻</span><span>复习</span></div>
+              <div class="tab"><span class="tab-icon">✓</span><span>测验</span></div>
+              <div class="tab"><span class="tab-icon">•</span><span>我的</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-2" class="scene">
+        <div class="copy-block">
+          <div class="eyebrow"><span class="eyebrow-dot"></span>Learning flow</div>
+          <h2 class="scene-title">不是刷词卡，是一步步进入语境。</h2>
+          <p class="scene-subtitle">学习会话从曝光、理解、练习到掌握确认，帮助用户从“看懂”走到“能想起来”。</p>
+        </div>
+        <div class="steps">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-title">听发音，看语境</div>
+              <div class="step-copy">短语解释、例句和来源放在同一个沉浸卡片里。</div>
+            </div>
+            <div class="progress-rail"><div class="progress-fill step-fill-a"></div></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-title">即时小测</div>
+              <div class="step-copy">用选择题和提示把新内容压实成可回忆记忆。</div>
+            </div>
+            <div class="progress-rail"><div class="progress-fill step-fill-b"></div></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-title">掌握确认</div>
+              <div class="step-copy">最终用中文提示回忆英文，错了就回到复习队列。</div>
+            </div>
+            <div class="progress-rail"><div class="progress-fill step-fill-c"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-3" class="scene">
+        <div class="quiz-panel">
+          <div class="mini-label">测验中心</div>
+          <div class="question">“可以帮我打包带走吗？” 对应哪一句？</div>
+          <div class="option correct-answer"><span class="option-key">A</span><span>Could I get this to go?</span></div>
+          <div class="option"><span class="option-key">B</span><span>Can you speak more slowly?</span></div>
+          <div class="option"><span class="option-key">C</span><span>I am just browsing.</span></div>
+          <div class="analytics">
+            <div class="metric">
+              <div class="metric-value">92%</div>
+              <div class="metric-label">正确率</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">🔥 8</div>
+              <div class="metric-label">当前连胜</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">12</div>
+              <div class="metric-label">待复习</div>
+            </div>
+          </div>
+        </div>
+        <div class="copy-block">
+          <div class="eyebrow"><span class="eyebrow-dot"></span>Quiz + review</div>
+          <h2 class="scene-title">复习和测验，跟着记忆节奏走。</h2>
+          <p class="scene-subtitle">错题回顾、主题测验、闪电测验和间隔复习，让用户知道今天该巩固什么。</p>
+        </div>
+      </section>
+
+      <section id="scene-4" class="scene">
+        <div class="copy-block">
+          <div class="eyebrow"><span class="eyebrow-dot"></span>System architecture</div>
+          <h2 class="scene-title">一个小程序，一个后端，一条内容流水线。</h2>
+          <p class="scene-subtitle">前端保持原生小程序体验；FastAPI 负责认证、内容、进度和测验；AI 参与生成更自然的干扰项。</p>
+        </div>
+        <div class="architecture">
+          <div class="connector connector-a"></div>
+          <div class="connector connector-b"></div>
+          <div class="connector connector-c"></div>
+          <div class="node frontend">
+            <div class="node-title">WeChat Mini Program</div>
+            <div class="node-copy">首页、词库、复习、测验、个人中心，贴近日常使用路径。</div>
+          </div>
+          <div class="node backend">
+            <div class="node-title">FastAPI Backend</div>
+            <div class="node-copy">JWT 登录、每日内容、学习进度、复习调度与统计。</div>
+          </div>
+          <div class="node ai">
+            <div class="node-title">AI Quiz Support</div>
+            <div class="node-copy">根据真实内容生成干扰项，让练习更接近语言使用。</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-5" class="scene">
+        <div class="copy-block">
+          <div class="brand-mark">
+            <div class="logo">E</div>
+            <div class="brand-name">EasySpeak</div>
+          </div>
+          <h2 class="scene-title">为每天都能打开的小练习而设计。</h2>
+          <p class="scene-subtitle">轻、准、持续：从每日内容开始，在复习和测验里把英语口语留住。</p>
+        </div>
+        <div class="final-stack">
+          <div class="final-line">Daily content → 真实生活场景</div>
+          <div class="final-line">Learning session → 短语和单词分阶段掌握</div>
+          <div class="final-line">Review loop → 到点复习，不靠意志力硬撑</div>
+          <div class="final-line">Quiz feedback → 用数据看见进步</div>
+        </div>
+      </section>
+
+      <div id="caption" class="caption">EasySpeak：每日口语内容、沉浸学习、间隔复习和 AI 测验反馈。</div>
+
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        const sceneDuration = 7;
+        const scenes = ["#scene-1", "#scene-2", "#scene-3", "#scene-4", "#scene-5"];
+        const captions = [
+          "EasySpeak：把每天推送的英语内容，变成可以真正开口说的练习。",
+          "学习会话按阶段推进：先进入语境，再练习理解，最后确认能不能回忆。",
+          "复习和测验不是附加功能，而是把记忆留住的主流程。",
+          "架构上，它由原生微信小程序、FastAPI 后端和 AI 测验支持组成。",
+          "最终目标很简单：让英语口语练习轻一点、准一点、每天都能继续。"
+        ];
+
+        gsap.set(scenes.slice(1), { opacity: 0, y: 28, pointerEvents: "none" });
+        gsap.set("#caption", { opacity: 0, y: 18 });
+
+        tl.from(".orb-a", { scale: 0.92, x: -20, y: 18, duration: 4, ease: "sine.inOut", repeat: 8, yoyo: true }, 0);
+        tl.from(".orb-b", { scale: 0.9, x: 18, y: -16, duration: 5, ease: "sine.inOut", repeat: 7, yoyo: true }, 0);
+        tl.to(".ghost-a", { x: 42, duration: 8, ease: "sine.inOut", repeat: 4, yoyo: true }, 0);
+        tl.to(".ghost-b", { y: -38, duration: 7, ease: "sine.inOut", repeat: 4, yoyo: true }, 0);
+
+        scenes.forEach((scene, index) => {
+          const at = index * sceneDuration;
+          if (index > 0) {
+            tl.to(scenes[index - 1], { opacity: 0, y: -26, duration: 0.55, ease: "power2.in" }, at - 0.5);
+            tl.to(scene, { opacity: 1, y: 0, duration: 0.65, ease: "power3.out" }, at);
+          }
+
+          if (index > 0) {
+            tl.to("#caption", { opacity: 0, y: 18, duration: 0.22, ease: "power2.in", overwrite: "auto" }, at - 0.1);
+          }
+          tl.call(() => {
+            document.querySelector("#caption").innerHTML = captions[index];
+          }, [], at);
+          tl.to("#caption", { opacity: 1, y: 0, duration: 0.38, ease: "power2.out", overwrite: "auto" }, at + 0.14);
+        });
+
+        tl.from("#scene-1 .brand-mark", { y: 34, opacity: 0, duration: 0.52, ease: "power3.out" }, 0.25);
+        tl.from("#scene-1 .eyebrow", { y: 28, opacity: 0, duration: 0.45, ease: "power3.out" }, 0.4);
+        tl.from("#scene-1 .scene-title", { y: 44, opacity: 0, duration: 0.62, ease: "power3.out" }, 0.55);
+        tl.from("#scene-1 .scene-subtitle", { y: 32, opacity: 0, duration: 0.52, ease: "power3.out" }, 0.76);
+        tl.from(".phone-home", { x: 70, rotation: 3, opacity: 0, duration: 0.72, ease: "power3.out" }, 0.54);
+        tl.to(".home-fill", { width: "74%", duration: 1.1, ease: "power3.out" }, 1.3);
+
+        tl.from("#scene-2 .copy-block > *", { x: -48, opacity: 0, duration: 0.55, ease: "power3.out", stagger: 0.14 }, 7.12);
+        tl.from("#scene-2 .step-card", { x: 80, opacity: 0, duration: 0.58, ease: "power3.out", stagger: 0.18 }, 7.34);
+        tl.to(".step-fill-a", { width: "100%", duration: 0.7, ease: "power3.out" }, 8.1);
+        tl.to(".step-fill-b", { width: "78%", duration: 0.7, ease: "power3.out" }, 8.35);
+        tl.to(".step-fill-c", { width: "42%", duration: 0.7, ease: "power3.out" }, 8.6);
+
+        tl.from("#scene-3 .quiz-panel", { x: -68, opacity: 0, duration: 0.64, ease: "power3.out" }, 14.12);
+        tl.from("#scene-3 .copy-block > *", { x: 48, opacity: 0, duration: 0.55, ease: "power3.out", stagger: 0.14 }, 14.28);
+        tl.from("#scene-3 .option", { y: 22, opacity: 0, duration: 0.36, ease: "power2.out", stagger: 0.12 }, 14.75);
+        tl.to("#scene-3 .correct-answer", { backgroundColor: "rgba(82, 196, 26, 0.10)", borderColor: "rgba(82, 196, 26, 0.48)", duration: 0.34 }, 15.45);
+        tl.from("#scene-3 .metric", { y: 28, opacity: 0, duration: 0.42, ease: "power2.out", stagger: 0.1 }, 15.72);
+
+        tl.from("#scene-4 .copy-block > *", { x: -48, opacity: 0, duration: 0.55, ease: "power3.out", stagger: 0.14 }, 21.12);
+        tl.from("#scene-4 .node", { scale: 0.9, opacity: 0, duration: 0.52, ease: "back.out(1.5)", stagger: 0.16 }, 21.46);
+        tl.from("#scene-4 .connector", { scaleX: 0, opacity: 0, duration: 0.5, ease: "power3.out", stagger: 0.1 }, 21.82);
+
+        tl.from("#scene-5 .brand-mark", { y: 34, opacity: 0, duration: 0.52, ease: "power3.out" }, 28.1);
+        tl.from("#scene-5 .scene-title", { y: 44, opacity: 0, duration: 0.62, ease: "power3.out" }, 28.28);
+        tl.from("#scene-5 .scene-subtitle", { y: 32, opacity: 0, duration: 0.52, ease: "power3.out" }, 28.52);
+        tl.from("#scene-5 .final-line", { x: 66, opacity: 0, duration: 0.48, ease: "power3.out", stagger: 0.15 }, 28.52);
+        tl.to("#caption", { opacity: 0, y: 18, duration: 0.45, ease: "power2.in", overwrite: "auto" }, 34.35);
+
+        window.__timelines["easyspeak-intro"] = tl;
+      </script>
+    </div>
+  </body>
+</html>

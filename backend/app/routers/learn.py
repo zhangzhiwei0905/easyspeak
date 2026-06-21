@@ -36,6 +36,8 @@ from app.utils.phrase_meaning import (
     get_phrase_short_meaning,
 )
 from app.utils.spaced_repetition import calculate_next_review_at
+from app.utils.word_enrichment import ensure_word_enrichments, parse_context_meanings
+from app.utils.distractors import get_challenging_distractors
 
 router = APIRouter()
 
@@ -136,9 +138,9 @@ async def create_learn_session(
     session_id = str(uuid.uuid4())[:8]
 
     if request.learn_type == "phrase":
-        items = _build_phrase_items(content, db)
+        items = await _build_phrase_items(content, db)
     else:
-        items = _build_word_items(content, db)
+        items = await _build_word_items(content, db)
 
     if not items:
         raise HTTPException(status_code=404, detail="没有可学习的内容")
@@ -162,36 +164,25 @@ def _get_phrase_meaning(p: Phrase) -> str:
     """Get the short phrase meaning used in choices; return empty string when unavailable."""
     return get_phrase_short_meaning(p) or ""
 
-def _build_phrase_items(content: DailyContent, db: Session) -> list[LearnPhraseItem]:
-    """Build phrase learning items with RICH, varied quizzes."""
+async def _build_phrase_items(content: DailyContent, db: Session) -> list[LearnPhraseItem]:
+    """Build phrase learning items with recognition and usage-focused quizzes."""
     phrases = content.phrases
     if not phrases:
         return []
 
-    # Build distractor pools from ALL phrases in DB
+    content_meanings = [_get_phrase_meaning(p) for p in phrases if _get_phrase_meaning(p)]
+    content_phrase_texts = [p.phrase for p in phrases if p.phrase]
     all_phrases_db = db.query(Phrase).all()
-    all_explanations = [_get_phrase_meaning(p) for p in all_phrases_db]
-    # Filter out phrases whose meaning is just the phrase text itself (last-resort fallback)
-    all_explanations = [e for e in all_explanations if e]
-    all_phrase_texts = [p.phrase for p in all_phrases_db]
-
-    # Collect example sentences for context-based quizzes
-    all_examples = []
-    for p in all_phrases_db:
-        if p.example_1_cn:
-            all_examples.append(p.example_1_cn)
-        if p.example_2_cn:
-            all_examples.append(p.example_2_cn)
+    all_explanations = [_get_phrase_meaning(p) for p in all_phrases_db if _get_phrase_meaning(p)]
+    all_phrase_texts = [p.phrase for p in all_phrases_db if p.phrase]
+    meaning_pool = content_meanings + all_explanations
+    phrase_pool = content_phrase_texts + all_phrase_texts
 
     items = []
     for idx, p in enumerate(phrases):
         meaning = _get_phrase_meaning(p)
-
-        # -- Pick varied quiz types for Stage 2 & 3 --
-        stage2 = _phrase_stage2_quiz(p, idx, meaning, all_explanations, all_phrase_texts, all_examples)
-        stage3 = _phrase_stage3_quiz(p, idx, meaning, all_phrase_texts, all_explanations)
-
-        # Pick best example
+        stage2 = await _phrase_stage2_quiz(p, idx, meaning, meaning_pool, phrase_pool, db)
+        stage3 = await _phrase_stage3_quiz(p, idx, meaning, phrase_pool, meaning_pool, db)
         example_en = p.example_1 or p.example_2 or p.example_3 or ""
         example_cn = p.example_1_cn or p.example_2_cn or p.example_3_cn or ""
 
@@ -209,153 +200,136 @@ def _build_phrase_items(content: DailyContent, db: Session) -> list[LearnPhraseI
             )
         )
 
+    db.commit()
     return items
 
 
-def _phrase_stage2_quiz(p: Phrase, idx: int, meaning: str, all_explanations, all_phrase_texts, all_examples) -> LearnQuiz:
-    """Generate a VARIED Stage 2 quiz for a phrase. Rotate through 3 types."""
+async def _learn_distractors(
+    db: Session,
+    *,
+    item_id: int,
+    question_type: str,
+    correct: str,
+    target_language: str,
+    fallback_pool: list[str],
+    prompt: str,
+    item_text: str = "",
+    meaning: str = "",
+    part_of_speech: str = "",
+    example: str = "",
+) -> list[str]:
+    return await get_challenging_distractors(
+        db,
+        scope="learn",
+        item_id=item_id,
+        question_type=question_type,
+        correct=correct,
+        target_language=target_language,
+        fallback_pool=fallback_pool,
+        prompt=prompt,
+        item_text=item_text,
+        meaning=meaning,
+        part_of_speech=part_of_speech,
+        example=example,
+        allow_ai=False,
+    )
+
+
+async def _phrase_stage2_quiz(p: Phrase, idx: int, meaning: str, all_explanations, all_phrase_texts, db: Session) -> LearnQuiz:
+    """Recognition stage: phrase meaning, reverse meaning, and contextual meaning."""
     quiz_type = idx % 3
     example_en = p.example_1 or p.example_2 or ""
 
     if not meaning:
-        distractors = _get_distractors(p.phrase, all_phrase_texts)
-        if example_en:
-            return _make_quiz(
-                question=f'哪个短语最适合这个语境？\n{example_en}',
-                correct_text=p.phrase,
-                distractors=distractors,
-            )
-        return _make_quiz(
-            question='请选择正确的学习短语',
-            correct_text=p.phrase,
-            distractors=distractors,
+        prompt = f'哪个短语最适合这个语境？\n{example_en}' if example_en else '请选择正确的学习短语'
+        distractors = await _learn_distractors(
+            db, item_id=p.id, question_type="learn_phrase_context_phrase", correct=p.phrase,
+            target_language="en", fallback_pool=all_phrase_texts, prompt=prompt,
+            item_text=p.phrase, example=example_en,
         )
+        return _make_quiz(prompt, p.phrase, distractors)
 
     if quiz_type == 0:
-        # Type A: 看英选中 — see phrase, pick Chinese meaning
-        distractors = _get_distractors(meaning, all_explanations)
-        return _make_quiz(
-            question=f'{p.phrase} 是什么意思？',
-            correct_text=meaning,
-            distractors=distractors,
+        prompt = f'{p.phrase} 是什么意思？'
+        distractors = await _learn_distractors(
+            db, item_id=p.id, question_type="learn_phrase_meaning", correct=meaning,
+            target_language="zh", fallback_pool=all_explanations, prompt=prompt,
+            item_text=p.phrase, meaning=meaning, example=example_en,
         )
+        return _make_quiz(prompt, meaning, distractors)
 
-    elif quiz_type == 1:
-        # Type B: 看中选英 — see Chinese meaning, pick English phrase
-        distractors = _get_distractors(p.phrase, all_phrase_texts)
-        return _make_quiz(
-            question=f'哪个英文短语表示「{meaning}」？',
-            correct_text=p.phrase,
-            distractors=distractors,
+    if quiz_type == 1:
+        prompt = f'哪个英文短语表示「{meaning}」？'
+        distractors = await _learn_distractors(
+            db, item_id=p.id, question_type="learn_meaning_to_phrase", correct=p.phrase,
+            target_language="en", fallback_pool=all_phrase_texts, prompt=prompt,
+            item_text=p.phrase, meaning=meaning, example=example_en,
         )
+        return _make_quiz(prompt, p.phrase, distractors)
 
-    else:
-        # Type C: 例句理解 — show example sentence, ask what phrase means
-        if example_en and _normalize_text(example_en) != _normalize_text(p.phrase):
-            distractors = _get_distractors(meaning, all_explanations)
-            return _make_quiz(
-                question=f'在句子 {example_en} 中，{p.phrase} 最可能的意思是？',
-                correct_text=meaning,
-                distractors=distractors,
-            )
-        else:
-            # Fallback to Type A (example is same as phrase or missing)
-            distractors = _get_distractors(meaning, all_explanations)
-            return _make_quiz(
-                question=f'{p.phrase} 是什么意思？',
-                correct_text=meaning,
-                distractors=distractors,
-            )
+    prompt = f'在句子 {example_en} 中，{p.phrase} 最可能的意思是？' if example_en else f'{p.phrase} 是什么意思？'
+    distractors = await _learn_distractors(
+        db, item_id=p.id, question_type="learn_phrase_context_meaning", correct=meaning,
+        target_language="zh", fallback_pool=all_explanations, prompt=prompt,
+        item_text=p.phrase, meaning=meaning, example=example_en,
+    )
+    return _make_quiz(prompt, meaning, distractors)
 
 
-def _phrase_stage3_quiz(p: Phrase, idx: int, meaning: str, all_phrase_texts, all_explanations) -> LearnQuiz:
-    """Generate a VARIED Stage 3 quiz for a phrase. Rotate through 3 types."""
+async def _phrase_stage3_quiz(p: Phrase, idx: int, meaning: str, all_phrase_texts, all_explanations, db: Session) -> LearnQuiz:
+    """Usage stage: fill phrase, choose phrase by context, and whole-expression recall."""
     quiz_type = idx % 3
-    example_en = p.example_1 or p.example_2 or p.example_3 or ""
+    example_en = p.example_1 or p.example_2 or ""
 
-    if not meaning:
-        distractors = _get_distractors(p.phrase, all_phrase_texts)
-        if example_en and p.phrase.lower() in example_en.lower():
-            blanked = re.sub(re.escape(p.phrase), "______", example_en, flags=re.IGNORECASE)
-            return _make_quiz(
-                question=f'选择正确的短语填入空白处：\n{blanked}',
-                correct_text=p.phrase,
-                distractors=distractors,
-            )
-        return _make_quiz(
-            question='请选择本次学习的正确短语',
-            correct_text=p.phrase,
-            distractors=distractors,
+    if quiz_type == 0 and example_en and p.phrase.lower() in example_en.lower():
+        blanked = re.sub(re.escape(p.phrase), "______", example_en, flags=re.IGNORECASE)
+        prompt = f'选择正确的短语填入空白处：\n{blanked}'
+        distractors = await _learn_distractors(
+            db, item_id=p.id, question_type="learn_phrase_fill", correct=p.phrase,
+            target_language="en", fallback_pool=all_phrase_texts, prompt=prompt,
+            item_text=p.phrase, meaning=meaning, example=example_en,
         )
+        return _make_quiz(prompt, p.phrase, distractors, hint=meaning)
 
-    if quiz_type == 0:
-        # Type A: 例句填空 — fill phrase into example sentence
-        if example_en and p.phrase.lower() in example_en.lower():
-            blanked = re.sub(re.escape(p.phrase), "______", example_en, flags=re.IGNORECASE)
-            distractors = _get_distractors(p.phrase, all_phrase_texts)
-            return _make_quiz(
-                question=f'选择正确的短语填入空白处：\n{blanked}',
-                correct_text=p.phrase,
-                distractors=distractors,
-                hint=meaning,
-            )
-        # Fallback
-        distractors = _get_distractors(p.phrase, all_phrase_texts)
-        return _make_quiz(
-            question=f'「{meaning}」对应哪个英文短语？',
-            correct_text=p.phrase,
-            distractors=distractors,
+    if quiz_type == 1 and example_en:
+        prompt = f'哪个短语最适合这个语境？\n{example_en}'
+        distractors = await _learn_distractors(
+            db, item_id=p.id, question_type="learn_phrase_context_phrase", correct=p.phrase,
+            target_language="en", fallback_pool=all_phrase_texts, prompt=prompt,
+            item_text=p.phrase, meaning=meaning, example=example_en,
         )
+        return _make_quiz(prompt, p.phrase, distractors, hint=meaning)
 
-    elif quiz_type == 1:
-        # Type B: 中文翻译选择 — show example English, pick correct Chinese translation
-        example_en = p.example_1 or p.example_2 or ""
-        example_cn = p.example_1_cn or p.example_2_cn or ""
-        if example_en and example_cn:
-            cn_pool = [e for e in all_explanations if e != meaning]
-            distractors = _get_distractors(example_cn, cn_pool) if cn_pool else ["不知道", "不确定", "难以判断"]
-            return _make_quiz(
-                question=f'请选择下面这句话的正确翻译：\n{example_en}',
-                correct_text=example_cn,
-                distractors=distractors,
-            )
-        # Fallback
-        distractors = _get_distractors(p.phrase, all_phrase_texts)
-        return _make_quiz(
-            question=f'「{meaning}」对应哪个英文短语？',
-            correct_text=p.phrase,
-            distractors=distractors,
-        )
-
-    else:
-        # Type C: 反向匹配 — see Chinese, pick English phrase
-        distractors = _get_distractors(p.phrase, all_phrase_texts)
-        return _make_quiz(
-            question=f'「{meaning}」对应哪个英文短语？',
-            correct_text=p.phrase,
-            distractors=distractors,
-        )
+    prompt = f'「{meaning}」对应哪个英文短语？' if meaning else '请选择本次学习的正确短语'
+    distractors = await _learn_distractors(
+        db, item_id=p.id, question_type="learn_phrase_recall", correct=p.phrase,
+        target_language="en", fallback_pool=all_phrase_texts, prompt=prompt,
+        item_text=p.phrase, meaning=meaning, example=example_en,
+    )
+    return _make_quiz(prompt, p.phrase, distractors)
 
 
 # ---------------------------------------------------------------------------
 # Word quiz builders — multiple quiz types
 # ---------------------------------------------------------------------------
 
-def _build_word_items(content: DailyContent, db: Session) -> list[LearnWordItem]:
-    """Build word learning items with RICH, varied quizzes."""
+async def _build_word_items(content: DailyContent, db: Session) -> list[LearnWordItem]:
+    """Build word learning items with foundation and usage-focused quizzes."""
     words = content.words
     if not words:
         return []
 
     all_words_db = db.query(Word).all()
-    all_meanings = [w.meaning for w in all_words_db if w.meaning]
-    all_word_texts = [w.word for w in all_words_db]
-    all_phonetics = [w.phonetic for w in all_words_db if w.phonetic]
+    content_meanings = [w.meaning for w in words if w.meaning]
+    content_word_texts = [w.word for w in words if w.word]
+    all_meanings = content_meanings + [w.meaning for w in all_words_db if w.meaning]
+    all_word_texts = content_word_texts + [w.word for w in all_words_db if w.word]
 
     items = []
     for idx, w in enumerate(words):
-        stage2 = _word_stage2_quiz(w, idx, all_meanings, all_word_texts, all_phonetics)
-        stage3 = _word_stage3_quiz(w, idx, all_meanings, all_word_texts)
+        contexts = parse_context_meanings(w.context_meanings)
+        stage2 = await _word_stage2_quiz(w, idx, all_meanings, all_word_texts, db)
+        stage3 = await _word_stage3_quiz(w, idx, all_meanings, all_word_texts, contexts, db)
 
         items.append(
             LearnWordItem(
@@ -365,95 +339,92 @@ def _build_word_items(content: DailyContent, db: Session) -> list[LearnWordItem]
                 part_of_speech=w.part_of_speech,
                 meaning=w.meaning or "",
                 example=w.example,
+                usage_note=w.usage_note,
+                context_meanings=contexts,
                 stage2_quiz=stage2,
                 stage3_quiz=stage3,
             )
         )
 
+    db.commit()
     return items
 
 
-def _word_stage2_quiz(w: Word, idx: int, all_meanings, all_word_texts, all_phonetics) -> LearnQuiz:
-    """Generate a VARIED Stage 2 quiz for a word."""
+async def _word_stage2_quiz(w: Word, idx: int, all_meanings, all_word_texts, db: Session) -> LearnQuiz:
+    """Foundation stage: meaning, phonetic form, and Chinese-to-English recall."""
     quiz_type = idx % 3
+    meaning = w.meaning or ""
 
     if quiz_type == 0:
-        # Type A: 看英选中 — see word, pick Chinese meaning
-        distractors = _get_distractors(w.meaning or "", all_meanings)
-        return _make_quiz(
-            question=f'{w.word} 是什么意思？',
-            correct_text=w.meaning or "",
-            distractors=distractors,
+        prompt = f'{w.word} 是什么意思？'
+        distractors = await _learn_distractors(
+            db, item_id=w.id, question_type="learn_word_meaning", correct=meaning,
+            target_language="zh", fallback_pool=all_meanings, prompt=prompt,
+            item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=w.example or "",
         )
+        return _make_quiz(prompt, meaning, distractors)
 
-    elif quiz_type == 1:
-        # Type B: 音标选词 — see phonetic, pick word
-        if w.phonetic:
-            distractors = _get_distractors(w.word, all_word_texts)
-            return _make_quiz(
-                question=f'音标 {w.phonetic} 对应哪个单词？',
-                correct_text=w.word,
-                distractors=distractors,
-            )
-        # Fallback to Type A
-        distractors = _get_distractors(w.meaning or "", all_meanings)
-        return _make_quiz(
-            question=f'{w.word} 是什么意思？',
-            correct_text=w.meaning or "",
-            distractors=distractors,
+    if quiz_type == 1 and w.phonetic:
+        prompt = f'音标 {w.phonetic} 对应哪个单词？'
+        distractors = await _learn_distractors(
+            db, item_id=w.id, question_type="learn_word_phonetic", correct=w.word,
+            target_language="en", fallback_pool=all_word_texts, prompt=prompt,
+            item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=w.example or "",
         )
+        return _make_quiz(prompt, w.word, distractors)
 
-    else:
-        # Type C: 看中选英 — see Chinese, pick English word
-        distractors = _get_distractors(w.word, all_word_texts)
-        return _make_quiz(
-            question=f'哪个英文单词表示「{w.meaning}」？',
-            correct_text=w.word,
-            distractors=distractors,
-        )
+    prompt = f'哪个英文单词表示「{meaning}」？'
+    distractors = await _learn_distractors(
+        db, item_id=w.id, question_type="learn_meaning_to_word", correct=w.word,
+        target_language="en", fallback_pool=all_word_texts, prompt=prompt,
+        item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=w.example or "",
+    )
+    return _make_quiz(prompt, w.word, distractors)
 
 
-def _word_stage3_quiz(w: Word, idx: int, all_meanings, all_word_texts) -> LearnQuiz:
-    """Generate a VARIED Stage 3 quiz for a word."""
+async def _word_stage3_quiz(w: Word, idx: int, all_meanings, all_word_texts, contexts: list[dict[str, str]], db: Session) -> LearnQuiz:
+    """Usage stage: sentence fill, part-of-speech/collocation, and contextual meaning."""
     quiz_type = idx % 3
+    meaning = w.meaning or ""
 
-    if quiz_type == 0:
-        # Type A: 例句选词 — fill word into example
-        if w.example and w.word.lower() in w.example.lower():
-            blanked = re.sub(re.escape(w.word), "______", w.example, count=1, flags=re.IGNORECASE)
-            distractors = _get_distractors(w.word, all_word_texts)
-            return _make_quiz(
-                question=f'选择正确的单词填入空白处：\n{blanked}',
-                correct_text=w.word,
-                distractors=distractors,
-                hint=w.meaning,
-            )
-        # Fallback
-        distractors = _get_distractors(w.word, all_word_texts)
-        return _make_quiz(
-            question=f'「{w.meaning}」对应哪个英文单词？',
-            correct_text=w.word,
-            distractors=distractors,
+    if quiz_type == 0 and w.example and w.word.lower() in w.example.lower():
+        blanked = re.sub(re.escape(w.word), "______", w.example, count=1, flags=re.IGNORECASE)
+        prompt = f'选择正确的单词填入空白处：\n{blanked}'
+        distractors = await _learn_distractors(
+            db, item_id=w.id, question_type="learn_word_fill", correct=w.word,
+            target_language="en", fallback_pool=all_word_texts, prompt=prompt,
+            item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=w.example or "",
         )
+        return _make_quiz(prompt, w.word, distractors, hint=meaning)
 
-    elif quiz_type == 1:
-        # Type B: 词性+释义 → 选单词
+    if quiz_type == 1:
         pos_hint = f"（{w.part_of_speech}）" if w.part_of_speech else ""
-        distractors = _get_distractors(w.word, all_word_texts)
-        return _make_quiz(
-            question=f'哪个单词的意思是「{w.meaning}」{pos_hint}？',
-            correct_text=w.word,
-            distractors=distractors,
+        prompt = f'哪个单词的意思是「{meaning}」{pos_hint}？'
+        distractors = await _learn_distractors(
+            db, item_id=w.id, question_type="learn_word_pos", correct=w.word,
+            target_language="en", fallback_pool=all_word_texts, prompt=prompt,
+            item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=w.example or "",
         )
+        return _make_quiz(prompt, w.word, distractors)
 
-    else:
-        # Type C: 看英选中 (different from stage 2)
-        distractors = _get_distractors(w.meaning or "", all_meanings)
-        return _make_quiz(
-            question=f'单词 {w.word} 的中文意思是？',
-            correct_text=w.meaning or "",
-            distractors=distractors,
+    context = contexts[0] if contexts else None
+    if context:
+        prompt = f'在「{context.get("context", "语境")}」中，{w.word} 更接近哪个意思？'
+        correct = context.get("meaning") or meaning
+        distractors = await _learn_distractors(
+            db, item_id=w.id, question_type="learn_word_context", correct=correct,
+            target_language="zh", fallback_pool=all_meanings, prompt=prompt,
+            item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=context.get("example") or w.example or "",
         )
+        return _make_quiz(prompt, correct, distractors, hint=w.usage_note)
+
+    prompt = f'单词 {w.word} 的中文意思是？'
+    distractors = await _learn_distractors(
+        db, item_id=w.id, question_type="learn_word_usage_meaning", correct=meaning,
+        target_language="zh", fallback_pool=all_meanings, prompt=prompt,
+        item_text=w.word, meaning=meaning, part_of_speech=w.part_of_speech or "", example=w.example or "",
+    )
+    return _make_quiz(prompt, meaning, distractors)
 
 
 # ---------------------------------------------------------------------------

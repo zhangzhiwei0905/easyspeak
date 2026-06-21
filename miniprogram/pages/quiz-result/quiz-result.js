@@ -1,12 +1,36 @@
 var navigation = require('../../utils/navigation')
+var quizType = require('../../utils/quiz-type')
 
-function getTypeLabel(type) {
-  var mapping = {
-    phrase_meaning_choice: '短语含义',
-    word_phonetic_choice: '单词音标',
-    phrase_fill_input: '短语填空'
+function normalizeResultItem(item) {
+  item = item || {}
+  var type = item.type || item.question_type || ''
+  var options = (item.options || []).map(function (option) {
+    return {
+      key: option.key || '',
+      text: option.text || '',
+      isCorrect: !!(option.isCorrect || option.is_correct || option.is_answer)
+    }
+  })
+  var userAnswer = item.userAnswer || item.user_answer || ''
+  var correctAnswer = item.correctAnswer || item.correct_answer || ''
+
+  if (!correctAnswer && options.length) {
+    var correctOption = options.find(function (option) { return option.isCorrect })
+    correctAnswer = correctOption ? correctOption.key + '. ' + correctOption.text : ''
   }
-  return mapping[type] || type
+
+  return Object.assign({}, item, {
+    question: item.question || item.prompt || '题目内容暂缺',
+    type: type,
+    typeLabel: quizType.getQuizTypeMeta(type).label,
+    interactionType: item.interactionType || item.interaction_type || 'choice',
+    options: options,
+    userAnswer: userAnswer || '未作答',
+    correctAnswer: correctAnswer || '暂无',
+    userAnswerKey: item.userAnswerKey || item.user_answer_key || '',
+    isCorrect: !!(item.isCorrect || item.correct),
+    explanation: item.explanation || item.hint || ''
+  })
 }
 
 Page({
@@ -31,8 +55,10 @@ Page({
 
     filter: 'all',
     filteredResults: [],
+    displayedResults: [],
     showAll: false,
-    visibleCount: 5
+    visibleCount: 10,
+    expandedIndex: -1
   },
 
   onLoad: function () {
@@ -78,7 +104,7 @@ Page({
       contentIds: quizResult.contentIds || '',
       performanceEmoji: performanceEmoji,
       performanceText: performanceText,
-      results: quizResult.results || [],
+      results: (quizResult.results || quizResult.details || []).map(normalizeResultItem),
       animating: true
     })
 
@@ -124,7 +150,7 @@ Page({
       if (!bucket[type]) {
         bucket[type] = {
           type: type,
-          label: getTypeLabel(type),
+          label: quizType.getQuizTypeMeta(type).label,
           correct: 0,
           total: 0
         }
@@ -162,7 +188,9 @@ Page({
 
     this.setData({
       filteredResults: results,
-      showAll: false
+      displayedResults: results.slice(0, this.data.visibleCount),
+      showAll: false,
+      expandedIndex: -1
     })
   },
 
@@ -172,7 +200,10 @@ Page({
   },
 
   onShowMore: function () {
-    this.setData({ showAll: true })
+    this.setData({
+      showAll: true,
+      displayedResults: this.data.filteredResults
+    })
   },
 
   onRetry: function () {
@@ -209,6 +240,13 @@ Page({
   onBackToQuiz: function () {
     wx.switchTab({
       url: '/pages/quiz/quiz'
+    })
+  },
+
+  onToggleDetail: function (e) {
+    var idx = e.currentTarget.dataset.index
+    this.setData({
+      expandedIndex: this.data.expandedIndex === idx ? -1 : idx
     })
   },
 

@@ -1,43 +1,49 @@
 /**
  * EasySpeak - Global Styles
- * Design: Morning purple-blue (#667eea/#764ba2) / Evening dark-blue (#1a1a2e/#0f3460)
+ * Design: Apple-inspired minimalism — clean, spacious, monochromatic
  */
 
 /* ========================================
    CSS Variables
    ======================================== */
 page {
-  /* Morning theme (default) */
-  --color-primary: #667eea;
-  --color-primary-dark: #764ba2;
-  --color-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --color-bg: #f0f2f5;
+  /* Light theme */
+  --color-primary: #007AFF;
+  --color-primary-dark: #0056CC;
+  --color-primary-gradient: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
+  --color-bg: #F5F5F7;
   --color-card: #ffffff;
-  --color-accent: #e8590c;
-  --color-text-primary: #1a1a1a;
-  --color-text-secondary: #666666;
-  --color-text-hint: #999999;
-  --color-border: #e8e8e8;
-  --color-success: #52c41a;
-  --color-warning: #faad14;
-  --color-error: #ff4d4f;
+  --color-accent: #007AFF;
+  --color-text-primary: #1D1D1F;
+  --color-text-secondary: #86868B;
+  --color-text-hint: #AEAEB2;
+  --color-border: #D2D2D7;
+  --color-success: #34C759;
+  --color-warning: #FF9F0A;
+  --color-error: #FF3B30;
 
-  /* Evening theme (dark mode override) */
-  --color-evening-primary: #1a1a2e;
-  --color-evening-primary-dark: #0f3460;
-  --color-evening-bg: #0d1117;
-  --color-evening-card: #161b22;
-  --color-evening-accent: #58a6ff;
-  --color-evening-text: #c9d1d9;
-  --color-evening-text-secondary: #8b949e;
-  --color-evening-border: #30363d;
+  /* Dark mode palette */
+  --color-evening-primary: #F5F5F7;
+  --color-evening-primary-dark: #98989D;
+  --color-evening-bg: #000000;
+  --color-evening-card: #1C1C1E;
+  --color-evening-accent: #0A84FF;
+  --color-evening-text: #F5F5F7;
+  --color-evening-text-secondary: #98989D;
+  --color-evening-border: #38383A;
 
   /* Typography */
-  --font-size-body: 28rpx;
-  --font-size-caption: 24rpx;
-  --font-size-title: 36rpx;
-  --font-size-heading: 44rpx;
   --font-size-small: 22rpx;
+  --font-size-caption: 26rpx;
+  --font-size-body: 30rpx;
+  --font-size-title: 40rpx;
+  --font-size-heading: 56rpx;
+  --font-size-display: 68rpx;
+
+  /* Letter spacing */
+  --tracking-tight: -0.5rpx;
+  --tracking-normal: 0;
+  --tracking-wide: 1rpx;
 
   /* Spacing */
   --spacing-page: 32rpx;
@@ -54,57 +60,68 @@ page {
   --radius-card: 16rpx;
   --radius-round: 999rpx;
 
-  /* Shadows */
-  --shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
-  --shadow-float: 0 12rpx 32rpx rgba(0, 0, 0, 0.12);
+  /* Shadows — minimal, Apple-style with depth */
+  --shadow-card: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+  --shadow-float: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
 
   /* Base styles */
   font-size: var(--font-size-body);
   color: var(--color-text-primary);
   background-color: var(--color-bg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  line-height: 1.6;
+  line-height: 1.5;
+  letter-spacing: var(--tracking-normal);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Dark mode support */
 page.dark {
-  --color-primary: #58a6ff;
-  --color-primary-dark: #1a1a2e;
-  --color-primary-gradient: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
-  --color-bg: #0d1117;
-  --color-card: #161b22;
-  --color-accent: #58a6ff;
-  --color-text-primary: #c9d1d9;
-  --color-text-secondary: #8b949e;
-  --color-text-hint: #6e7681;
-  --color-border: #30363d;
-  --color-success: #3fb950;
-  --color-warning: #d29922;
-  --color-error: #f85149;
-  --shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0 8rpx 24rpx rgba(0, 0, 0, 0.4);
-  --shadow-float: 0 12rpx 32rpx rgba(0, 0, 0, 0.5);
+  --color-primary: #0A84FF;
+  --color-primary-dark: #409CFF;
+  --color-primary-gradient: linear-gradient(135deg, #0A84FF 0%, #409CFF 100%);
+  --color-bg: #000000;
+  --color-card: #1C1C1E;
+  --color-accent: #0A84FF;
+  --color-text-primary: #F5F5F7;
+  --color-text-secondary: #98989D;
+  --color-text-hint: #636366;
+  --color-border: #38383A;
+  --color-success: #30D158;
+  --color-warning: #FFD60A;
+  --color-error: #FF453A;
+  --shadow-card: 0 2rpx 12rpx rgba(0, 0, 0, 0.25);
+  --shadow-card-hover: 0 4rpx 20rpx rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
 }
 
 /* ========================================
    Typography
    ======================================== */
+.text-display {
+  font-size: var(--font-size-display);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+}
+
 .text-heading {
   font-size: var(--font-size-heading);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.15;
+  letter-spacing: var(--tracking-tight);
 }
 
 .text-title {
   font-size: var(--font-size-title);
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.3;
+  letter-spacing: var(--tracking-tight);
 }
 
 .text-body {
   font-size: var(--font-size-body);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .text-caption {
@@ -116,6 +133,14 @@ page.dark {
 .text-small {
   font-size: var(--font-size-small);
   color: var(--color-text-hint);
+}
+
+.text-medium {
+  font-weight: 500;
+}
+
+.text-semibold {
+  font-weight: 600;
 }
 
 .text-accent {
@@ -153,11 +178,12 @@ page.dark {
   box-shadow: var(--shadow-card);
   padding: var(--spacing-card);
   margin-bottom: var(--spacing-lg);
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
 }
 
 .card:active {
   box-shadow: var(--shadow-card-hover);
+  transform: scale(0.985);
 }
 
 .card-flat {
@@ -325,7 +351,7 @@ page.dark {
   font-size: var(--font-size-body);
   font-weight: 500;
   border: none;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.15s ease;
   line-height: 1.5;
 }
 
@@ -334,7 +360,8 @@ page.dark {
 }
 
 .btn:active {
-  opacity: 0.8;
+  opacity: 0.85;
+  transform: scale(0.97);
 }
 
 .btn-primary {
@@ -382,7 +409,7 @@ page.dark {
   padding: 4rpx 16rpx;
   border-radius: var(--radius-round);
   font-size: var(--font-size-small);
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(0, 122, 255, 0.08);
   color: var(--color-primary);
 }
 
@@ -439,43 +466,48 @@ page.dark {
 }
 
 .empty-state-icon {
-  font-size: 120rpx;
+  font-size: 96rpx;
   margin-bottom: var(--spacing-lg);
+  opacity: 0.4;
 }
 
 .empty-state-text {
-  font-size: var(--font-size-title);
-  color: var(--color-text-hint);
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+}
+
+.empty-state-action {
+  margin-top: var(--spacing-lg);
 }
 
 /* ========================================
    Animations
    ======================================== */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20rpx); }
+  from { opacity: 0; transform: translateY(16rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(40rpx); }
+  from { opacity: 0; transform: translateY(32rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.35s ease forwards;
 }
 
 .animate-slide-up {
   animation: slideUp 0.4s ease forwards;
 }
 
-.animate-pulse {
-  animation: pulse 2s ease-in-out infinite;
+.animate-scale-in {
+  animation: scaleIn 0.3s ease forwards;
 }
 
 /* ========================================
@@ -489,4 +521,16 @@ page.dark {
 .safe-top {
   padding-top: constant(safe-area-inset-top);
   padding-top: env(safe-area-inset-top);
+}
+
+/* ========================================
+   Interactive Press Effect
+   ======================================== */
+.pressable {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.pressable:active {
+  transform: scale(0.97);
+  opacity: 0.85;
 }

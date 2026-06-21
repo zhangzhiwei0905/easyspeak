@@ -1,7 +1,7 @@
 {
   "navigationBarTitleText": "EasySpeak",
-  "navigationBarBackgroundColor": "#667eea",
-  "navigationBarTextStyle": "white",
+  "navigationBarBackgroundColor": "#F5F5F7",
+  "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "phrase-card": "../../components/phrase-card/phrase-card",

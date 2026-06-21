@@ -1,5 +1,50 @@
-const api = require('../../utils/api')
-const auth = require('../../utils/auth')
+var api = require('../../utils/api')
+var auth = require('../../utils/auth')
+
+function buildCategoryFilters(categories, selectedKeys) {
+  var selectedMap = {}
+  ;(selectedKeys || []).forEach(function (key) {
+    selectedMap[key] = true
+  })
+
+  return (categories || []).map(function (item) {
+    var key = String(item.key)
+    return {
+      key: key,
+      label: item.label || key,
+      selected: !!selectedMap[key]
+    }
+  })
+}
+
+function clampPercent(value) {
+  var numeric = Number(value) || 0
+  if (numeric < 0) return 0
+  if (numeric > 100) return 100
+  return Math.round(numeric)
+}
+
+function buildDisplayStats(stats) {
+  var accuracy = clampPercent(stats.accuracy)
+  var totalAnswered = Number(stats.total_answered) || 0
+  var streakDays = Number(stats.streak_days) || 0
+  var wrongCount = Number(stats.wrong_count) || 0
+  var weeklyGoal = Number(stats.weekly_goal) || 50
+  var weeklyDone = Number(stats.weekly_answered) || 0
+  var weeklyPercent = clampPercent(stats.weekly_percent)
+
+  return {
+    streakDays: streakDays,
+    doneText: totalAnswered || 0,
+    weeklyDone: weeklyDone,
+    weeklyGoal: weeklyGoal,
+    weeklyPercent: weeklyPercent,
+    weeklyRing: 'conic-gradient(#ffb21c ' + weeklyPercent + '%, #edf1f8 ' + weeklyPercent + '%)',
+    accuracy: accuracy,
+    accuracyRing: 'conic-gradient(#2f73ff ' + accuracy + '%, #edf1f8 ' + accuracy + '%)',
+    wrongStatus: wrongCount > 0 ? '待复盘' : '已清空'
+  }
+}
 
 Page({
   data: {
@@ -11,11 +56,14 @@ Page({
       max_streak: 0,
       wrong_count: 0
     },
-    themes: [],
-    selectedThemes: [],
     wrongCount: 0,
-    showThemePicker: false,
-    showStatsPanel: false
+    displayStats: buildDisplayStats({}),
+    showStatsPanel: false,
+    showCategoryPicker: false,
+    categoriesLoading: false,
+    availableCategories: [],
+    categoryFilters: buildCategoryFilters([], []),
+    selectedCategories: []
   },
 
   onShow: function () {
@@ -23,7 +71,8 @@ Page({
   },
 
   onPullDownRefresh: function () {
-    this._loadData()
+    var self = this
+    self._loadData()
       .then(function () {
         wx.stopPullDownRefresh()
       })
@@ -42,15 +91,11 @@ Page({
         return
       }
 
-      return Promise.all([
-        self._loadStats(),
-        self._loadThemes()
-      ]).then(function () {
+      return Promise.all([self._loadStats(), self._loadCategories()]).then(function () {
         self.setData({ loading: false })
-      }).catch(function (err) {
-        self.setData({ loading: false })
-        throw err
       })
+    }).catch(function () {
+      self.setData({ loading: false })
     })
   },
 
@@ -65,9 +110,14 @@ Page({
             accuracy: stats.accuracy || 0,
             current_streak: stats.current_streak || 0,
             max_streak: stats.max_streak || 0,
+            streak_days: stats.streak_days || 0,
+            weekly_answered: stats.weekly_answered || 0,
+            weekly_goal: stats.weekly_goal || 50,
+            weekly_percent: stats.weekly_percent || 0,
             wrong_count: stats.wrong_count || 0
           },
-          wrongCount: stats.wrong_count || 0
+          wrongCount: stats.wrong_count || 0,
+          displayStats: buildDisplayStats(stats)
         })
       })
       .catch(function (err) {
@@ -75,24 +125,28 @@ Page({
       })
   },
 
-  _loadThemes: function () {
+  _loadCategories: function () {
     var self = this
-    return api.get('/quiz/themes')
+    self.setData({ categoriesLoading: true })
+    return api.get('/quiz/categories')
       .then(function (data) {
+        var categories = Array.isArray(data) ? data.filter(function (item) {
+          return item && item.key && (item.question_count || 0) > 0
+        }) : []
+
         self.setData({
-          themes: (data || []).map(function (item) {
-            return {
-              content_id: parseInt(item.content_id, 10),
-              theme_zh: item.theme_zh || '',
-              theme_en: item.theme_en || '',
-              question_count: item.question_count || 0,
-              selected: false
-            }
-          })
+          categoriesLoading: false,
+          availableCategories: categories,
+          categoryFilters: buildCategoryFilters(categories, self.data.selectedCategories)
         })
       })
       .catch(function (err) {
-        console.error('[Quiz] Failed to load themes:', err)
+        console.error('[Quiz] Failed to load categories:', err)
+        self.setData({
+          categoriesLoading: false,
+          availableCategories: [],
+          categoryFilters: buildCategoryFilters([], [])
+        })
       })
   },
 
@@ -119,57 +173,80 @@ Page({
     })
   },
 
-  onToggleThemePicker: function () {
-    var opening = !this.data.showThemePicker
-    var themes = this.data.themes
-    if (!opening) {
-      themes = themes.map(function (item) {
-        return Object.assign({}, item, { selected: false })
+  onOpenCategoryPicker: function () {
+    var self = this
+    var openPicker = function () {
+      if (self.data.availableCategories.length === 0) {
+        wx.showToast({ title: '暂无可测类别，请先学习内容', icon: 'none' })
+        return
+      }
+
+      self.setData({
+        showCategoryPicker: true,
+        selectedCategories: [],
+        categoryFilters: buildCategoryFilters(self.data.availableCategories, [])
       })
     }
-    this.setData({
-      showThemePicker: opening,
-      selectedThemes: opening ? this.data.selectedThemes : [],
-      themes: themes
-    })
+
+    if (this.data.categoriesLoading) {
+      wx.showToast({ title: '类别加载中，请稍候', icon: 'none' })
+      return
+    }
+
+    if (this.data.availableCategories.length === 0) {
+      this._loadCategories().then(openPicker)
+      return
+    }
+
+    openPicker()
   },
 
-  onThemeSelect: function (e) {
-    var id = parseInt(e.currentTarget.dataset.id, 10)
-    var selected = this.data.selectedThemes.slice()
-    var idx = selected.indexOf(id)
+  onCategoryToggle: function (e) {
+    var key = e.currentTarget.dataset.key
+    if (!key) return
+
+    var selected = this.data.selectedCategories.slice()
+    var idx = selected.indexOf(key)
 
     if (idx === -1) {
-      selected.push(id)
+      selected.push(key)
     } else {
       selected.splice(idx, 1)
     }
 
-    var themes = this.data.themes.map(function (item) {
-      return Object.assign({}, item, {
-        selected: selected.indexOf(item.content_id) !== -1
-      })
-    })
-
     this.setData({
-      selectedThemes: selected,
-      themes: themes
+      selectedCategories: selected,
+      categoryFilters: buildCategoryFilters(this.data.availableCategories, selected)
     })
   },
 
   onStartThemeQuiz: function () {
-    var ids = this.data.selectedThemes
-    if (ids.length === 0) {
-      wx.showToast({ title: '请至少选择一个主题', icon: 'none' })
+    var selected = this.data.selectedCategories
+    if (selected.length === 0) {
+      wx.showToast({ title: '请至少选择一个类别', icon: 'none' })
       return
     }
+
+    this.setData({ showCategoryPicker: false })
 
     this._goToQuizPlay({
       mode: 'theme',
       questionCount: 10,
-      contentIds: ids.join(','),
+      category: selected.join(','),
       quizMode: 'normal'
     })
+  },
+
+  onCloseCategoryPicker: function () {
+    this.setData({
+      showCategoryPicker: false,
+      selectedCategories: [],
+      categoryFilters: buildCategoryFilters(this.data.availableCategories, [])
+    })
+  },
+
+  onMaskTap: function () {
+    this.onCloseCategoryPicker()
   },
 
   onStartWrongReview: function () {

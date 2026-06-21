@@ -9,6 +9,7 @@ const auth = require('../../utils/auth')
 
 // Date helpers
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const LOAD_PROGRESS_INTERVAL = 260
 
 function formatDateStr(date) {
   const y = date.getFullYear()
@@ -32,6 +33,8 @@ Page({
     // Loading states
     loading: true,
     refreshing: false,
+    loadingProgress: 0,
+    loadingText: '正在连接今日内容...',
 
     // Date picker
     currentDate: formatDateStr(new Date()),
@@ -75,8 +78,14 @@ Page({
     calendarDays: []
   },
 
+  _loadProgressTimer: null,
+
   onLoad: function () {
     this._initDate()
+  },
+
+  onUnload: function () {
+    this._clearLoadProgress()
   },
 
   onShow: function () {
@@ -133,7 +142,7 @@ Page({
         }
         self.setData({ loading: false })
         // Still fetch in background to refresh cache
-        self._fetchFromServer(dateStr)
+        self._fetchFromServer(dateStr, { silent: true })
         return Promise.resolve()
       }
     }
@@ -141,9 +150,20 @@ Page({
     return self._fetchFromServer(dateStr)
   },
 
-  _fetchFromServer: function (dateStr) {
+  _fetchFromServer: function (dateStr, options) {
     var self = this
-    self.setData({ loading: true, error: false, isEmpty: false })
+    options = options || {}
+    var silent = !!options.silent
+    if (!silent) {
+      self.setData({
+        loading: true,
+        error: false,
+        isEmpty: false,
+        loadingProgress: 0,
+        loadingText: '正在连接今日内容...'
+      })
+      self._startLoadProgress()
+    }
 
     return auth.ensureLogin().then(function (loggedIn) {
       if (!loggedIn) {
@@ -162,13 +182,22 @@ Page({
       } else {
         self.setData({ tomorrowTheme: null, tomorrowDateDisplay: '', tomorrowWeekday: '' })
       }
-      self.setData({ loading: false, refreshing: false })
+      if (!silent) {
+        self._finishLoadProgress(function () {
+          self.setData({ loading: false, refreshing: false })
+        })
+      } else {
+        self.setData({ refreshing: false })
+      }
     }).catch(function (err) {
       console.error('[Index] Fetch failed:', err)
+      if (!silent) {
+        self._clearLoadProgress()
+      }
       self.setData({
-        loading: false,
+        loading: silent ? self.data.loading : false,
         refreshing: false,
-        error: true,
+        error: silent ? self.data.error : true,
         errorMsg: err.message || '加载失败'
       })
       // If we had cached data before, still show it
@@ -178,9 +207,56 @@ Page({
         if (self.data.isToday && cached.tomorrow) {
           self._processTomorrowDataFromResponse(cached.tomorrow)
         }
-        self.setData({ error: false })
+        self.setData({ error: false, loading: false })
       }
     })
+  },
+
+  _startLoadProgress: function () {
+    var self = this
+    self._clearLoadProgress()
+    self._loadProgressTimer = setInterval(function () {
+      var current = self.data.loadingProgress || 0
+      if (current >= 96) {
+        self.setData({ loadingText: '内容马上就好，请稍等...' })
+        return
+      }
+
+      var next = current + (current < 35 ? 12 : current < 70 ? 7 : current < 90 ? 4 : 1)
+      if (next > 96) next = 96
+
+      var text = '正在连接今日内容...'
+      if (next >= 35 && next < 70) {
+        text = '正在整理短语和单词...'
+      } else if (next >= 70 && next < 90) {
+        text = '正在同步学习进度...'
+      } else if (next >= 90) {
+        text = '正在准备首页卡片...'
+      }
+
+      self.setData({
+        loadingProgress: next,
+        loadingText: text
+      })
+    }, LOAD_PROGRESS_INTERVAL)
+  },
+
+  _clearLoadProgress: function () {
+    if (this._loadProgressTimer) {
+      clearInterval(this._loadProgressTimer)
+      this._loadProgressTimer = null
+    }
+  },
+
+  _finishLoadProgress: function (done) {
+    this._clearLoadProgress()
+    this.setData({
+      loadingProgress: 100,
+      loadingText: '今日内容已准备好'
+    })
+    setTimeout(function () {
+      if (typeof done === 'function') done()
+    }, 160)
   },
 
   _processTomorrowDataFromResponse: function (tomorrow) {
@@ -233,7 +309,9 @@ Page({
  phonetic: w.phonetic || '',
  partOfSpeech: w.part_of_speech || '',
  meaning: w.meaning || '',
- example: w.example || ''
+ example: w.example || '',
+ usageNote: w.usage_note || '',
+ contextMeanings: w.context_meanings || []
  }
  })
 

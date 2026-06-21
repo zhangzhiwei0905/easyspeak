@@ -15,15 +15,15 @@
     "pages/settings/settings"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#667eea",
+    "navigationBarBackgroundColor": "#F5F5F7",
     "navigationBarTitleText": "EasySpeak",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#f0f2f5",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F5F5F7",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#667eea",
+    "color": "#86868B",
+    "selectedColor": "#007AFF",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

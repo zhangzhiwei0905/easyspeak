@@ -1,5 +1,5 @@
 """Pydantic schemas for user auth and progress."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, Optional
 from datetime import date, datetime
 
@@ -14,6 +14,12 @@ class WxLoginResponse(BaseModel):
     is_new_user: bool
 
 
+class TodayActivity(BaseModel):
+    learn_sessions: int = 0
+    review_items: int = 0
+    quiz_answers: int = 0
+
+
 class ProgressSummary(BaseModel):
     study_streak: int = 0
     total_study_days: int = 0
@@ -23,6 +29,10 @@ class ProgressSummary(BaseModel):
     mastered_words: int = 0
     total_quiz: int = 0
     avg_accuracy: float = 0.0
+    active_streak_days: int = 0
+    last_active_date: Optional[date] = None
+    today_activity: TodayActivity = Field(default_factory=TodayActivity)
+    streak_sources: list[str] = Field(default_factory=list)
 
 
 class CalendarDay(BaseModel):
@@ -88,6 +98,7 @@ class ReviewItem(BaseModel):
     source: Optional[str] = None
     part_of_speech: Optional[str] = None
     next_review_at: Optional[datetime] = None
+    review_quizzes: list[dict[str, Any]] = []
     stage2_quiz: Optional[dict[str, Any]] = None
     stage3_quiz: Optional[dict[str, Any]] = None
     final_quiz: Optional[dict[str, Any]] = None

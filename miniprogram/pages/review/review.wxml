@@ -6,7 +6,7 @@
     <view class="review-header__content">
       <view class="review-header__topline">
         <view class="review-header__icon-wrap">
-          <text class="review-header__icon">{{!loading && !overviewLoadFailed && dueCount === 0 ? '✅' : '🧠'}}</text>
+          <text class="review-header__icon">{{!loading && !overviewLoadFailed && dueCount === 0 ? '完成' : '·'}}</text>
         </view>
         <text class="review-header__tag">Spaced Repetition</text>
       </view>
@@ -36,7 +36,7 @@
 
   <view class="review-section">
     <view class="review-section__title">
-      <text class="review-section__icon">📅</text>
+      <text class="review-section__icon">·</text>
       <text>复习日历</text>
     </view>
     <calendar
@@ -49,7 +49,7 @@
 
   <view class="review-section">
     <view class="review-section__title">
-      <text class="review-section__icon">📊</text>
+      <text class="review-section__icon">·</text>
       <text>记忆曲线概览</text>
     </view>
 
@@ -106,7 +106,7 @@
       <text class="review-btn__count" wx:else>{{dueCount}}项要复习</text>
     </button>
     <view class="review-completed-text" wx:else>
-      <text>✅ 当日复习内容已完成</text>
+      <text>当日复习内容已完成</text>
     </view>
   </view>
 
@@ -120,35 +120,39 @@
 <view class="review-session" wx:if="{{mode === 'session'}}">
   <view class="session-header">
     <view class="session-header__top">
-      <view class="session-header__back" bindtap="exitSession">
+      <button class="session-header__back" catchtap="exitSession" hover-class="none" aria-label="退出智能复习">
         <text>✕</text>
-      </view>
-      <text class="session-header__title">复习测验 · {{reviewStageLabel}}</text>
+      </button>
+      <text class="session-header__title">复习测验</text>
       <view class="session-header__placeholder"></view>
     </view>
     <view class="session-header__progress-text">
-      <text>第 {{currentIndex + 1}} / {{totalQuestionCount}} 题 · {{currentItem.text}}</text>
+      <text>第 {{currentIndex + 1}} / {{totalQuestionCount}} 题</text>
     </view>
     <progress-bar
       current="{{currentIndex + 1}}"
       total="{{totalQuestionCount}}"
-      color="#667eea"
+      color="#007AFF"
       height="{{12}}"
     />
   </view>
 
   <view class="review-quiz-card">
-    <view class="review-quiz-card__badge {{currentItem.item_type === 'word' ? 'review-quiz-card__badge--word' : ''}}">
-      <text>{{currentItem.item_type === 'phrase' ? '💬 短语' : '📖 单词'}}</text>
+    <view class="review-quiz-card__meta">
+      <view class="review-quiz-card__badge {{currentItem.item_type === 'word' ? 'review-quiz-card__badge--word' : ''}}">
+        <text>{{currentItem.item_type === 'phrase' ? '短语' : '单词'}}</text>
+      </view>
+      <view class="review-quiz-card__type">
+        <text>{{reviewStageLabel || '复习题'}}</text>
+      </view>
     </view>
 
-    <block wx:if="{{reviewStage === 2 || reviewStage === 3}}">
-      <text class="review-quiz-card__hint">{{quizData.hint || (reviewStage === 2 ? '根据中文选择英文' : '根据英文句子选择中文')}}</text>
-      <text class="review-quiz-card__question">{{quizData.question}}</text>
+    <block wx:if="{{quizData && quizData.interaction_type === 'choice'}}">
+      <text class="review-quiz-card__question">{{quizData.prompt}}</text>
 
       <view class="review-options">
         <view
-          class="review-option {{selectedKey === item.key ? 'review-option--selected' : ''}} {{submitted && item.key === quizData.answer ? 'review-option--correct' : ''}} {{submitted && selectedKey === item.key && item.key !== quizData.answer ? 'review-option--wrong' : ''}}"
+          class="review-option {{selectedKey === item.key ? 'review-option--selected' : ''}} {{submitted && (item.is_answer || item.key === quizData.answer_key) ? 'review-option--correct' : ''}} {{submitted && selectedKey === item.key && !(item.is_answer || item.key === quizData.answer_key) ? 'review-option--wrong' : ''}}"
           wx:for="{{quizData.options}}"
           wx:key="key"
           data-key="{{item.key}}"
@@ -160,7 +164,7 @@
       </view>
 
       <view class="review-feedback {{isCorrect ? 'review-feedback--correct' : 'review-feedback--wrong'}}" wx:if="{{submitted}}">
-        <text>{{isCorrect ? '✅ 答对了' : '❌ 正确答案：' + correctOptionText}}</text>
+        <text>{{isCorrect ? '答对了' : '正确答案：' + correctOptionText}}</text>
       </view>
 
       <button
@@ -175,11 +179,10 @@
       >继续</button>
     </block>
 
-    <block wx:if="{{reviewStage === 4}}">
-      <text class="review-quiz-card__hint">最终确认</text>
+    <block wx:if="{{finalQuiz}}">
       <text class="review-quiz-card__question">{{finalQuiz.prompt}}</text>
 
-      <block wx:if="{{finalQuiz.type === 'word_select'}}">
+      <block wx:if="{{finalQuizMode === 'word_select' || finalQuizMode === 'reorder'}}">
         <view class="review-slots">
           <view
             class="review-slot {{slot.isCorrect === true ? 'review-slot--correct' : ''}} {{slot.isCorrect === false ? 'review-slot--wrong' : ''}}"
@@ -203,11 +206,11 @@
           >{{tile.text}}</view>
         </view>
         <view class="review-feedback {{wordSelectSubmitted && wordSlots[0].isCorrect ? 'review-feedback--correct' : 'review-feedback--wrong'}}" wx:if="{{wordSelectSubmitted}}">
-          <text>正确短语：{{finalQuiz.correct_phrase}}</text>
+          <text>正确短语：{{finalQuizAnswer}}</text>
         </view>
       </block>
 
-      <block wx:if="{{finalQuiz.type === 'spelling_keyboard'}}">
+      <block wx:if="{{finalQuizMode === 'spelling_keyboard'}}">
         <view class="review-slots review-slots--letters">
           <view
             class="review-slot review-slot--letter {{slot.isCorrect === true ? 'review-slot--correct' : ''}} {{slot.isCorrect === false ? 'review-slot--wrong' : ''}}"
@@ -231,7 +234,7 @@
           >{{letter.text}}</view>
         </view>
         <view class="review-feedback {{spellingCorrect ? 'review-feedback--correct' : 'review-feedback--wrong'}}" wx:if="{{spellingSubmitted}}">
-          <text>{{spellingCorrect ? '✅ 拼写正确' : '❌ 正确拼写：' + finalQuiz.answer}}</text>
+          <text>{{spellingCorrect ? '拼写正确' : '正确拼写：' + finalQuizAnswer}}</text>
         </view>
       </block>
 
@@ -250,7 +253,7 @@
 
 <view class="review-summary" wx:if="{{mode === 'summary'}}">
   <view class="summary-card">
-    <view class="summary-card__icon">🎉</view>
+    <view class="summary-card__icon">·</view>
     <text class="summary-card__title">复习完成！</text>
 
     <view class="summary-stats">
@@ -286,13 +289,13 @@
 
   <view class="summary-actions">
     <button class="summary-btn summary-btn--again" bindtap="reviewAgain">
-      <text>🔄 再来一轮</text>
+      <text>再来一轮</text>
     </button>
     <button class="summary-btn summary-btn--quiz" bindtap="goToQuiz">
-      <text>🎯 去测一测</text>
+      <text>去测一测</text>
     </button>
     <button class="summary-btn summary-btn--back" bindtap="backToOverview">
-      <text>🏠 返回复习首页</text>
+      <text>返回首页</text>
     </button>
   </view>
 </view>
@@ -311,17 +314,14 @@
         <text class="day-detail__section-title">当日复习</text>
         <view class="day-detail__stats day-detail__stats--review">
           <view class="day-detail__stat">
-            <text class="day-detail__stat-icon">🔄</text>
             <text class="day-detail__stat-value">{{dayDetail.reviewedCount}}</text>
             <text class="day-detail__stat-label">项复习</text>
           </view>
           <view class="day-detail__stat">
-            <text class="day-detail__stat-icon">💬</text>
             <text class="day-detail__stat-value">{{dayDetail.reviewPhraseCount}}</text>
             <text class="day-detail__stat-label">短语</text>
           </view>
           <view class="day-detail__stat">
-            <text class="day-detail__stat-icon">📖</text>
             <text class="day-detail__stat-value">{{dayDetail.reviewWordCount}}</text>
             <text class="day-detail__stat-label">单词</text>
           </view>
@@ -357,17 +357,14 @@
         <text class="day-detail__theme">{{dayDetail.themeZh}}</text>
         <view class="day-detail__stats">
           <view class="day-detail__stat">
-            <text class="day-detail__stat-icon">💬</text>
             <text class="day-detail__stat-value">{{dayDetail.phraseCount}}</text>
             <text class="day-detail__stat-label">个短语</text>
           </view>
           <view class="day-detail__stat">
-            <text class="day-detail__stat-icon">📖</text>
             <text class="day-detail__stat-value">{{dayDetail.wordCount}}</text>
             <text class="day-detail__stat-label">个单词</text>
           </view>
           <view class="day-detail__stat" wx:if="{{dayDetail.firstPassRate !== null && dayDetail.firstPassRate !== undefined}}">
-            <text class="day-detail__stat-icon">🎯</text>
             <text class="day-detail__stat-value">{{dayDetail.firstPassRate}}%</text>
             <text class="day-detail__stat-label">一次通过</text>
           </view>

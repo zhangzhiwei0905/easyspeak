@@ -28,8 +28,8 @@
 }
 
 .search-bar--active .search-bar__inner {
-  border-color: rgba(102, 126, 234, 0.4);
-  box-shadow: 0 4rpx 20rpx rgba(102, 126, 234, 0.15);
+  border-color: rgba(0, 122, 255, 0.4);
+  box-shadow: 0 4rpx 20rpx rgba(0, 122, 255, 0.15);
 }
 
 .search-bar__cancel {
@@ -63,13 +63,13 @@
 
 .search-bar__clear {
   font-size: 28rpx;
-  color: #bbb;
+  color: var(--color-text-hint);
   padding: 8rpx 12rpx;
   flex-shrink: 0;
 }
 
 .search-bar__clear:active {
-  color: #888;
+  color: var(--color-text-hint);
 }
 
 /* Removed Backdrop */
@@ -111,7 +111,7 @@
 }
 
 .search-panel__clear:active {
-  color: #ff4d4f;
+  color: var(--color-error);
 }
 
 .search-panel__tags {
@@ -124,7 +124,7 @@
   display: inline-flex;
   align-items: center;
   padding: 10rpx 24rpx;
-  background: #f5f6fa;
+  background: var(--color-bg);
   border-radius: var(--radius-round);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
@@ -132,7 +132,7 @@
 }
 
 .search-panel__tag:active {
-  background: #e8e9ed;
+  background: var(--color-bg);
 }
 
 /* ---------- Search Results ---------- */
@@ -159,7 +159,7 @@
 }
 
 .category-filter__chip--active {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   border-color: transparent;
   color: #ffffff;
   font-weight: 600;
@@ -218,7 +218,7 @@
 }
 
 .search-results__item:active {
-  background: #f8f9fc;
+  background: var(--color-bg);
 }
 
 .search-results__item-main {
@@ -270,7 +270,7 @@
 
 .library-page .skeleton__line {
   height: 28rpx;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--color-border) 25%, var(--color-border) 50%, var(--color-border) 75%);
   background-size: 400% 100%;
   border-radius: 8rpx;
   margin-bottom: 20rpx;
@@ -375,8 +375,8 @@
   margin-top: 8rpx;
   padding: 4rpx 12rpx;
   border-radius: var(--radius-round);
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--color-primary);
   font-size: 22rpx;
 }
 

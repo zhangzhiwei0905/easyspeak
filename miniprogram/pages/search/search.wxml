@@ -4,7 +4,7 @@
   <!-- Search Bar -->
   <view class="search-bar-wrap">
     <view class="search-bar">
-      <text class="search-icon">🔍</text>
+      <text class="search-icon"></text>
       <input
         class="search-input"
         type="text"
@@ -16,7 +16,7 @@
         bindinput="onInput"
         bindconfirm="onConfirm"
       />
-      <text class="search-clear" wx:if="{{keyword}}" bindtap="onClear">✕</text>
+      <text class="search-clear" wx:if="{{keyword}}" bindtap="onClear">·</text>
     </view>
     <text class="search-cancel" bindtap="onCancelSearch">取消</text>
   </view>
@@ -28,7 +28,7 @@
     <view wx:if="{{!hasSearched && !loading}}" class="history-section">
       <view class="flex-between mb-md" wx:if="{{searchHistory.length > 0}}">
         <text class="section-title-sm">最近搜索</text>
-        <text class="clear-history-btn" bindtap="onClearHistory">🗑️ 清空</text>
+        <text class="clear-history-btn" bindtap="onClearHistory">清空</text>
       </view>
 
       <view class="history-tags" wx:if="{{searchHistory.length > 0}}">
@@ -56,7 +56,7 @@
 
     <!-- No Results -->
     <view wx:if="{{hasSearched && !loading && phraseResults.length === 0 && wordResults.length === 0}}" class="empty-state">
-      <text class="empty-state-icon">🔍</text>
+      <text class="empty-state-icon"></text>
       <text class="empty-state-text">未找到 "{{keyword}}" 相关内容</text>
       <text class="empty-state-hint mt-sm">试试其他关键词吧</text>
     </view>
@@ -67,7 +67,7 @@
       <!-- Phrase Results -->
       <view class="result-section" wx:if="{{phraseResults.length > 0}}">
         <view class="result-section-header">
-          <text class="result-section-icon">💬</text>
+          <text class="result-section-icon"></text>
           <text class="result-section-title">短语</text>
           <text class="result-section-count">{{phraseResults.length}} 条结果</text>
         </view>
@@ -83,7 +83,7 @@
       <!-- Word Results -->
       <view class="result-section" wx:if="{{wordResults.length > 0}}">
         <view class="result-section-header">
-          <text class="result-section-icon">📖</text>
+          <text class="result-section-icon"></text>
           <text class="result-section-title">单词</text>
           <text class="result-section-count">{{wordResults.length}} 条结果</text>
         </view>

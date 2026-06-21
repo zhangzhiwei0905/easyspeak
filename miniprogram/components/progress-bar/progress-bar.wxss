@@ -6,7 +6,7 @@
 
 .progress-bar__track {
   width: 100%;
-  background: #f0f2f5;
+  background: var(--color-bg);
   overflow: hidden;
   position: relative;
 }
@@ -52,11 +52,11 @@
 
 .progress-bar__text {
   font-size: 22rpx;
-  color: #999;
+  color: var(--color-text-hint);
 }
 
 .progress-bar__pct {
   font-size: 22rpx;
-  color: #999;
+  color: var(--color-text-hint);
   font-weight: 600;
 }

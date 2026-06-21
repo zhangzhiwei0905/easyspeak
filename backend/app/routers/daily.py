@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.models.daily import DailyContent
 from app.models.user import User
-from app.schemas.daily import DailyContentOut, DailyContentListItem, PaginatedResponse, TodayResponse, CalendarResponse, CalendarItem
+from app.schemas.daily import DailyContentOut, DailyContentListItem, PaginatedResponse, TodayResponse, CalendarResponse, CalendarItem, TomorrowInfo
 
 router = APIRouter()
 settings = get_settings()
@@ -89,10 +89,11 @@ async def get_optional_user(
     return db.query(User).filter(User.openid == openid).first()
 
 
-def _build_today_response(content, db=None, openid=None):
+def _build_today_response(content, target_date=None, db=None, openid=None):
     """Build TodayResponse from a single DailyContent."""
     progress = {}
     review = {}
+    tomorrow = None
 
     if db and openid and content:
         from app.models.user import UserProgress
@@ -131,7 +132,22 @@ def _build_today_response(content, db=None, openid=None):
         )
         review = {"due_count": due_count}
 
-    return TodayResponse(content=content, progress=progress, review=review)
+    # Fetch tomorrow's theme
+    if db and target_date:
+        tomorrow_date = target_date + timedelta(days=1)
+        tomorrow_content = (
+            db.query(DailyContent)
+            .filter(DailyContent.date == tomorrow_date)
+            .first()
+        )
+        if tomorrow_content:
+            tomorrow = TomorrowInfo(
+                theme_zh=tomorrow_content.theme_zh,
+                theme_en=tomorrow_content.theme_en or "",
+                category_zh=tomorrow_content.category_zh or "",
+            )
+
+    return TodayResponse(content=content, progress=progress, review=review, tomorrow=tomorrow)
 
 
 @router.get("/today", response_model=TodayResponse)
@@ -148,7 +164,7 @@ async def get_today(
         .filter(DailyContent.date == target)
     )
     content = _visible_content_filter(query).first()
-    return _build_today_response(content, db, user.openid if user else None)
+    return _build_today_response(content, target_date=target, db=db, openid=user.openid if user else None)
 
 
 @router.get("/date/{target_date}", response_model=TodayResponse)
@@ -162,7 +178,7 @@ async def get_by_date(target_date: date, db: Session = Depends(get_db)):
     content = _visible_content_filter(query).first()
     if not content:
         raise HTTPException(status_code=404, detail=f"No content found for {target_date}")
-    return _build_today_response(content, db)
+    return _build_today_response(content, target_date=target_date, db=db)
 
 
 @router.get("/list", response_model=PaginatedResponse)
